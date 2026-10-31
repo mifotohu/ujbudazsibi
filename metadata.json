@@ -1,0 +1,6 @@
+{
+  "name": "Újbudai Bolhapiac & Zsibvásár",
+  "description": "XI. kerületi májusi hétvégi közösségi bolhapiac interaktív utcatérképpel, asztalfoglalással és programokkal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
