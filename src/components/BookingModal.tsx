@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
 import { TableData, LocationData, BookingFormState, ConfirmedBooking } from '../types/market';
 import { CATEGORIES } from '../data/mockData';
 import { sendEmailNotification } from '../lib/supabase';
@@ -42,6 +43,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   if (!isOpen || !table) return null;
 
   const [step, setStep] = useState<'details' | 'categories' | 'payment' | 'success'>('details');
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [formData, setFormData] = useState<BookingFormState>({
     fullName: '',
     email: '',
@@ -207,6 +209,36 @@ Lemondási szabályzat: Vásár előtt legkésőbb 8 nappal mondható le díjmen
     setIsProcessing(false);
     setStep('success');
   };
+
+  // Generate genuine high-contrast QR code readable by any smartphone camera
+  useEffect(() => {
+    if (step === 'success' && confirmedData) {
+      const qrPayload = `ÚJBUDAZSIBI HIVATALOS ÁRUSI ENGEDÉLY
+Stand: #${confirmedData.tableId}
+Árus: ${confirmedData.sellerName}
+Helyszín: ${confirmedData.locationName} (${confirmedData.streetName})
+Időpont: ${confirmedData.weekendDates}
+Azonosító: ${confirmedData.bookingId}
+Díj: ${confirmedData.totalPaid.toLocaleString('hu-HU')} Ft (Rendezve)
+Hitelesítés: https://www.ujbudazsibi.hu/verify/${confirmedData.bookingId}`;
+
+      QRCode.toDataURL(qrPayload, {
+        width: 280,
+        margin: 1,
+        color: {
+          dark: '#14261B',
+          light: '#FFFFFF',
+        },
+        errorCorrectionLevel: 'M',
+      })
+        .then((url) => {
+          setQrCodeDataUrl(url);
+        })
+        .catch((err) => {
+          console.error('QR kód generálási hiba:', err);
+        });
+    }
+  }, [step, confirmedData]);
 
   const handlePrint = () => {
     window.print();
@@ -626,8 +658,8 @@ Lemondási szabályzat: Vásár előtt legkésőbb 8 nappal mondható le díjmen
         {/* Step 4: Digital Pass */}
         {step === 'success' && confirmedData && (
           <div className="p-5 sm:p-6 space-y-4">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center mx-auto mb-2">
+            <div className="text-center no-print">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center mx-auto mb-2 shadow-xs">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
               <h3 className="text-lg font-black text-stone-900 font-serif">
@@ -638,69 +670,106 @@ Lemondási szabályzat: Vásár előtt legkésőbb 8 nappal mondható le díjmen
               </p>
             </div>
 
-            {/* Official Pass */}
-            <div className="bg-white border-2 border-emerald-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3 relative">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                    Újbudazsibi · Hivatalos árusi engedély
-                  </span>
-                  <h4 className="text-xl font-black text-stone-900 mt-0.5 font-serif">
+            {/* Official Pass - Printable 1-page A4 Pass */}
+            <div
+              id="printable-pass"
+              className="bg-white border-2 border-[#1A3626] rounded-2xl p-5 sm:p-6 shadow-sm space-y-4 relative"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#1A3626]"></span>
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1A3626] font-serif">
+                      Újbudazsibi · Hivatalos árusi engedély
+                    </span>
+                  </div>
+                  <h4 className="text-2xl font-black text-stone-900 mt-1 font-serif tracking-tight">
                     STAND #{confirmedData.tableId}
                   </h4>
-                  <p className="text-xs text-stone-600 font-medium">
+                  <p className="text-xs text-[#254834] font-bold mt-0.5">
                     {confirmedData.locationName}
                   </p>
+                  <p className="text-[11px] text-stone-600 font-medium">
+                    {confirmedData.streetName}
+                  </p>
                 </div>
-                <div className="bg-stone-50 p-1.5 rounded-lg border border-stone-200 flex flex-col items-center">
-                  <QrCode className="w-14 h-14 text-stone-900" />
-                  <span className="text-[9px] font-mono font-bold text-stone-500 mt-0.5">
+
+                {/* Genuine Scannable QR Code */}
+                <div className="bg-[#FAF7F2] p-2 rounded-xl border border-stone-300 flex flex-col items-center shrink-0 shadow-2xs">
+                  {qrCodeDataUrl ? (
+                    <img
+                      src={qrCodeDataUrl}
+                      alt={`Hivatalos QR igazolás #${confirmedData.bookingId}`}
+                      className="w-24 h-24 sm:w-28 sm:h-28 object-contain rounded bg-white p-0.5"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 flex flex-col items-center justify-center bg-stone-100 rounded text-stone-400">
+                      <QrCode className="w-8 h-8 animate-pulse text-[#1A3626]" />
+                      <span className="text-[9px] mt-1 font-mono">QR kód...</span>
+                    </div>
+                  )}
+                  <span className="text-[10px] font-mono font-bold text-stone-800 mt-1 tracking-tight">
                     {confirmedData.bookingId}
                   </span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-stone-200">
+              {/* Booking Details Grid */}
+              <div className="grid grid-cols-2 gap-2.5 text-xs pt-3 border-t border-stone-200">
                 <div>
-                  <span className="text-[10px] text-stone-400 block">Árus neve:</span>
-                  <span className="font-bold text-stone-900">{confirmedData.sellerName}</span>
+                  <span className="text-[10px] uppercase font-bold text-stone-400 block tracking-wider">Árus neve</span>
+                  <span className="font-bold text-stone-900 text-sm font-serif">{confirmedData.sellerName}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-stone-400 block">Időpont:</span>
+                  <span className="text-[10px] uppercase font-bold text-stone-400 block tracking-wider">Vásári időpont</span>
                   <span className="font-semibold text-stone-900">{confirmedData.weekendDates}</span>
                 </div>
                 <div className="col-span-2">
-                  <span className="text-[10px] text-stone-400 block">Helyszín:</span>
-                  <span className="text-stone-800 text-[11px] font-medium">{confirmedData.streetName}</span>
+                  <span className="text-[10px] uppercase font-bold text-stone-400 block tracking-wider">Helyszín pontos címe</span>
+                  <span className="text-stone-800 text-xs font-medium">{confirmedData.streetName}</span>
                 </div>
                 <div className="col-span-2">
-                  <span className="text-[10px] text-stone-400 block">Stand terület:</span>
-                  <span className="text-stone-800 text-[11px] font-bold">250 × 100 cm (120×80 cm asztal + 65-65 cm oldalsó pakolás)</span>
+                  <span className="text-[10px] uppercase font-bold text-stone-400 block tracking-wider">Lefoglalt standterület</span>
+                  <span className="text-stone-900 text-xs font-bold">250 × 100 cm (120×80 cm fa asztal biztosítva + 65-65 cm oldalsó pakolás)</span>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-stone-200 flex items-center justify-between text-xs font-semibold">
-                <span className="text-stone-600">Kifizetett díj:</span>
-                <span className="font-mono text-emerald-900 tabular-nums font-bold">
-                  {confirmedData.totalPaid.toLocaleString()} Ft (Rendezve)
-                </span>
+              {/* Price & Official Stamp */}
+              <div className="pt-3 border-t border-stone-200 flex items-center justify-between text-xs font-semibold">
+                <div>
+                  <span className="text-stone-500 text-[11px] block">Részvételi hozzájárulás:</span>
+                  <span className="font-mono text-[#1A3626] tabular-nums font-bold text-sm">
+                    {confirmedData.totalPaid.toLocaleString('hu-HU')} Ft (Online kiegyenlítve)
+                  </span>
+                </div>
+                <div className="text-right text-[10px] text-stone-500">
+                  <span className="font-serif italic font-bold text-[#254834] block">Újbudazsibi Közösségi Vásár</span>
+                  <span>www.ujbudazsibi.hu</span>
+                </div>
+              </div>
+
+              {/* Print footnote */}
+              <div className="pt-2 border-t border-dashed border-stone-200 text-[10px] text-stone-500 flex items-center justify-between">
+                <span>Nyomtatva a helyszíni belépéshez vagy mutasd be mobilon.</span>
+                <span className="font-mono">{confirmedData.bookingId}</span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 no-print">
               <button
                 type="button"
                 onClick={handlePrint}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-stone-700 bg-stone-200/80 hover:bg-stone-300 rounded-xl transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-[#14261B] bg-[#E7C286] hover:bg-[#C88A36] rounded-xl transition-colors cursor-pointer border border-[#C88A36] shadow-2xs font-serif"
+                title="1 oldalas PDF nyomtatás vagy letöltés"
               >
                 <Printer className="w-4 h-4" />
-                <span>Nyomtatás / PDF</span>
+                <span>Nyomtatás / PDF mentés (1 oldal)</span>
               </button>
               
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl cursor-pointer"
+                className="px-5 py-2.5 text-xs font-bold text-[#E7C286] bg-[#1A3626] hover:bg-[#254834] rounded-xl cursor-pointer border border-[#426E53] shadow-xs font-serif"
               >
                 Vissza a vásártérképhez
               </button>

@@ -558,27 +558,28 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-stone-950/80 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-[#FAF8F5] rounded-2xl max-w-5xl w-full border border-stone-300 shadow-2xl overflow-hidden my-4 flex flex-col max-h-[94vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-5 pt-3 sm:pt-6 bg-stone-950/80 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-[#FAF8F5] rounded-2xl max-w-5xl w-full border border-stone-300 shadow-2xl overflow-hidden my-auto flex flex-col max-h-[96vh] sm:max-h-[92vh]">
         
-        {/* Header */}
-        <div className="px-5 sm:px-6 py-4 border-b border-stone-200 bg-[#F4EFE6] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-stone-900 text-white flex items-center justify-center shadow-xs">
-              <Store className="w-5 h-5 text-amber-300" />
+        {/* Header - Mobile unclipped with safe padding */}
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-stone-200 bg-[#F4EFE6] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-stone-900 text-white flex items-center justify-center shadow-xs shrink-0">
+              <Store className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300" />
             </div>
-            <div>
-              <h3 className="text-base font-extrabold text-stone-900 leading-tight font-serif">
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-extrabold text-stone-900 leading-tight font-serif truncate">
                 Újbudazsibi szervezői adminisztráció
               </h3>
-              <p className="text-xs text-stone-600 mt-0.5">
-                Védett felület (ujbudazsibi.hu/admin) · Szervezői e-mail cím: <strong>ujbudazsibi@gmail.com</strong>
+              <p className="text-[11px] sm:text-xs text-stone-600 mt-0.5 truncate">
+                Védett felület · Szervezői e-mail cím: <strong>ujbudazsibi@gmail.com</strong>
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer shrink-0"
+            title="Bezárás"
           >
             <X className="w-5 h-5" />
           </button>
@@ -744,25 +745,25 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               </div>
             </div>
 
-            {/* ACTION & FILTER TOOLBAR (Fully responsive, clean layout without broken textarea) */}
-            <div className="bg-[#F6F2EB] px-5 sm:px-6 py-2.5 border-b border-stone-200 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
+            {/* ACTION & FILTER TOOLBAR (Fully responsive, stacked on mobile with full-width search) */}
+            <div className="bg-[#F6F2EB] px-4 sm:px-6 py-3 border-b border-stone-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 text-xs">
+              <div className="w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={handleExportToGoogleSheets}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-[#1A3626] hover:bg-[#254d37] text-[#E7C286] border border-[#C88A36]/40 shadow-xs transition-colors cursor-pointer whitespace-nowrap font-serif"
+                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 rounded-xl text-xs font-bold bg-[#1A3626] hover:bg-[#254d37] text-[#E7C286] border border-[#C88A36]/40 shadow-xs transition-colors cursor-pointer whitespace-nowrap font-serif"
                   title="Összes jelentkező exportálása Google Táblázatba (.xlsx külön fülekkel)"
                 >
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>Google Sheets export (.xlsx 7 füllel)</span>
                 </button>
               </div>
 
-              <div className="flex items-center gap-2 flex-1 sm:flex-initial justify-end">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto flex-1 justify-end">
                 <select
                   value={selectedLocationFilter}
                   onChange={(e) => setSelectedLocationFilter(e.target.value)}
-                  className="px-3 py-1.5 text-xs rounded-xl border border-stone-300 bg-white text-stone-800 font-medium focus:ring-1 focus:ring-emerald-700"
+                  className="w-full sm:w-48 px-3 py-2 sm:py-1.5 text-xs rounded-xl border border-stone-300 bg-white text-stone-800 font-medium focus:ring-1 focus:ring-emerald-700 shadow-2xs"
                 >
                   <option value="all">Minden helyszín</option>
                   {locations.map((loc) => (
@@ -772,15 +773,15 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   ))}
                 </select>
 
-                <div className="relative">
+                <div className="relative w-full sm:w-60">
                   <input
                     type="text"
                     placeholder="Keresés név, stand, cím..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-7 pr-3 py-1.5 text-xs rounded-xl border border-stone-300 bg-white w-40 sm:w-56 focus:outline-none focus:ring-1 focus:ring-emerald-700"
+                    className="w-full pl-8 pr-3 py-2 sm:py-1.5 text-xs rounded-xl border border-stone-300 bg-white text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-emerald-700 shadow-2xs"
                   />
-                  <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2 top-2" />
+                  <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-2.5" />
                 </div>
               </div>
             </div>
@@ -834,10 +835,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold block">
-                        8 napos elállási szabályzat és asztaltörlés:
+                        8 napos elállási szabályzat és szervezői admin felülbírálás:
                       </span>
                       <span>
-                        Az árus foglalása a vásár előtt <strong>legkésőbb 8 nappal mondható le és törölhető</strong>. A törléssel az asztal automatikusan azonnal <strong>szabad státuszba kerül a térképen</strong>. 8 napon belül a rendszer a törlés gombot zárolja, így az asztal nem mondható le.
+                        Lakossági elállás a vásár előtt <strong>legkésőbb 8 nappal</strong> engedélyezett. <strong>Szervezői adminisztrátorként bármelyik standfoglalást törölheted és azonnal felszabadíthatod</strong> a vásártérképen 8 napon belül is (adminisztrátori felülbírálással).
                       </span>
                     </div>
                   </div>
@@ -931,7 +932,12 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                 </span>
                               </div>
 
-                              {canCancel ? (
+                              <div className="flex flex-col sm:flex-row items-start lg:items-end justify-between gap-2">
+                                {!canCancel && (
+                                  <span className="text-[10px] bg-amber-50 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded shadow-2xs">
+                                    &lt; 8 nap (Admin felülbírálás)
+                                  </span>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -939,22 +945,17 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                       type: 'seller',
                                       id: b.table.id,
                                       title: `Stand #${b.table.id} (${b.table.reservedBy?.name})`,
-                                      details: `${b.locationName} · ${b.weekendDates}. A törléssel az asztal azonnal felszabadul a térképen!`,
+                                      details: `${b.locationName} · ${b.weekendDates}. Adminisztrátori felülbírálással törölve: az asztal azonnal újra foglalhatóvá válik a vásártérképen!`,
                                       extraId: b.locationId,
                                     })
                                   }
-                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer"
-                                  title="Több mint 8 nap van hátra: a foglalás törölhető és az asztal azonnal felszabadul."
+                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                                  title="Standfoglalás törlése és asztal azonnali felszabadítása a vásártérképen"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-3.5 h-3.5 shrink-0" />
                                   <span>Törlés & Asztal felszabadítása</span>
                                 </button>
-                              ) : (
-                                <div className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-stone-500 bg-stone-100 border border-stone-200 rounded-lg cursor-not-allowed">
-                                  <Lock className="w-3.5 h-3.5 text-stone-400" />
-                                  <span>Zárolva (&lt; 8 nap van hátra)</span>
-                                </div>
-                              )}
+                              </div>
                             </div>
                           </div>
                         );

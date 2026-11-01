@@ -376,7 +376,7 @@ export const StreetPlanView: React.FC<StreetPlanViewProps> = ({
                   </div>
 
                   {/* SOUTH SIDEWALK (Asztalok 19–36) */}
-                  <div className="bg-[#FAF7F2] p-2.5 sm:p-3 relative z-10">
+                  <div className="bg-[#FAF7F2] p-2.5 sm:p-3 pb-8 sm:pb-12 relative z-20">
                     <div className="flex items-center justify-between mb-1.5 text-[11px] font-bold text-stone-700 uppercase tracking-wider">
                       <span>Déli utcafront (Járda dél · standok 19 – 36)</span>
                       <span className="text-[10px] text-stone-500 font-normal">250×100 cm hasznos standhely</span>
@@ -599,10 +599,11 @@ const TableButton: React.FC<TableButtonProps> = ({
   const gdprDisplayName = table.reservedBy ? formatGdprName(table.reservedBy.name) : '';
 
   // TOOLTIP POSITIONING:
-  // North row: opens DOWNWARDS (top-full mt-2) into the pedestrian walkway
-  // South row: opens UPWARDS (bottom-full mb-2) into the pedestrian walkway
+  // North row (1–18): opens UPWARD (bottom-full mb-2) above the table
+  // South row (19–36): opens DOWNWARD (top-full mt-2) below the table ("déli sor lent jelenjen meg")
+  // This completely eliminates any overlap between the two rows!
   const isNorth = table.side === 'north';
-  const verticalPos = isNorth ? 'top-full mt-2' : 'bottom-full mb-2';
+  const verticalPos = isNorth ? 'bottom-full mb-2' : 'top-full mt-2';
 
   // Prevent horizontal clipping at street edges (tables 1-3 on left, 16-18 on right)
   const colIndex = ((table.id - 1) % 18) + 1;
@@ -671,8 +672,8 @@ const TableButton: React.FC<TableButtonProps> = ({
         <div
           className={`absolute ${
             isNorth
-              ? '-top-1.5 border-t border-l border-[#426E53]'
-              : '-bottom-1.5 border-b border-r border-[#426E53]'
+              ? '-bottom-1.5 border-b border-r border-[#426E53]'
+              : '-top-1.5 border-t border-l border-[#426E53]'
           } ${arrowHorizontal} w-3 h-3 bg-[#1A3626] rotate-45 pointer-events-none`}
         ></div>
 
