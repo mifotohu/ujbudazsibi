@@ -356,10 +356,54 @@ export default function App() {
     showToast('Utcazenész törölve.');
   };
 
-  // Review handlers
+  // Kids Flea table cancellation handler (frees table & updates state/localStorage)
+  const handleCancelKidsTable = (locationId: string, tableId: string) => {
+    setLocations((prevLocations) =>
+      prevLocations.map((loc) => {
+        if (loc.id === locationId) {
+          return {
+            ...loc,
+            kidsFleaTables: loc.kidsFleaTables.map((kt) => {
+              if (kt.id === tableId) {
+                return {
+                  ...kt,
+                  status: 'available',
+                  reservedBy: undefined,
+                };
+              }
+              return kt;
+            }),
+          };
+        }
+        return loc;
+      })
+    );
+    showToast(`${tableId} Gyerekzsibi asztal felszabadítva!`);
+  };
+
+  // Review handlers & moderation
   const handleSubmitReview = (newReview: MarketReview) => {
     setReviews((prev) => [newReview, ...prev]);
     showToast('Köszönjük! Anonim véleményed rögzítettük a szervezőség számára.');
+  };
+
+  const handleApproveReview = (reviewId: string) => {
+    setReviews((prev) =>
+      prev.map((r) => (r.id === reviewId ? { ...r, status: 'approved' } : r))
+    );
+    showToast('Vélemény jóváhagyva: mostantól megjelenik a weboldalon.');
+  };
+
+  const handleRejectReview = (reviewId: string) => {
+    setReviews((prev) =>
+      prev.map((r) => (r.id === reviewId ? { ...r, status: 'rejected' } : r))
+    );
+    showToast('Vélemény elrejtve a weboldalról.');
+  };
+
+  const handleDeleteReview = (reviewId: string) => {
+    setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+    showToast('Vélemény véglegesen törölve.');
   };
 
   // Volunteer handlers
@@ -500,33 +544,73 @@ export default function App() {
 
           </div>
 
-          {/* Quick location feature card - Vintage ticket placard */}
-          <div className="bg-[#244733]/90 backdrop-blur-md border border-[#426E53] p-6 sm:p-7 rounded-2xl flex flex-col justify-between shrink-0 max-w-sm shadow-xl relative overflow-hidden group">
+          {/* Quick location feature card - Vintage ticket placard with 4 selectable locations at top */}
+          <div className="bg-[#244733]/95 backdrop-blur-md border border-[#426E53] p-5 sm:p-6 rounded-2xl flex flex-col justify-between shrink-0 w-full lg:max-w-md shadow-xl relative overflow-hidden group">
             {/* Top-right stamp motif */}
             <div className="absolute top-0 right-0 w-12 h-12 pointer-events-none opacity-25">
               <div className="w-full h-full border-t-2 border-r-2 border-[#E7C286]"></div>
             </div>
 
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-widest text-[#E7C286] block mb-1 font-serif">
-                Kiemelt hétvégi helyszín
-              </span>
-              <h3 className="text-2xl font-black text-[#FBF6EE] leading-tight font-serif">
-                {activeLocation.name}
-              </h3>
-              <p className="text-xs text-[#D5E4D8] mt-1.5 flex items-start gap-1 leading-normal font-medium">
-                <MapPin className="w-3.5 h-3.5 text-[#C88A36] shrink-0 mt-0.5" />
-                <span>{activeLocation.streetName} · {activeLocation.weekendDates}</span>
-              </p>
+              {/* TOP: 4 selectable locations pill buttons */}
+              <div className="mb-4">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#E7C286] block mb-2 font-serif flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#C88A36]"></span>
+                  <span>Válassz májusi helyszínt:</span>
+                </span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {locations.map((loc) => {
+                    const isSel = loc.id === selectedLocationId;
+                    return (
+                      <button
+                        key={loc.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedLocationId(loc.id);
+                          setSelectedTable(null);
+                        }}
+                        className={`p-2 rounded-xl text-left transition-all cursor-pointer border ${
+                          isSel
+                            ? 'bg-[#C88A36] text-[#1B1916] font-black border-[#E7C286] shadow-md ring-1 ring-[#E7C286]/50'
+                            : 'bg-[#183122] text-[#D5E4D8] border-[#31573F] hover:bg-[#203f2c]'
+                        }`}
+                      >
+                        <span className="block text-xs font-serif font-bold truncate leading-tight">
+                          {loc.name}
+                        </span>
+                        <span className="text-[10px] opacity-80 block font-mono mt-0.5">
+                          {loc.dateBadge}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* BOTTOM: Selected location details */}
+              <div className="pt-3.5 border-t border-[#345F45]">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#E7C286] font-serif mb-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#C88A36]"></span>
+                  <span>Kiválasztott helyszín</span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-[#FBF6EE] leading-tight font-serif">
+                  {activeLocation.name}
+                </h3>
+                <p className="text-xs text-[#D5E4D8] mt-1.5 flex items-start gap-1 leading-normal font-medium">
+                  <MapPin className="w-3.5 h-3.5 text-[#C88A36] shrink-0 mt-0.5" />
+                  <span>{activeLocation.streetName} · {activeLocation.weekendDates}</span>
+                </p>
+              </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-[#345F45] flex items-center justify-between text-xs">
+            <div className="mt-5 pt-3.5 border-t border-[#345F45] flex items-center justify-between text-xs">
               <span className="text-[#E7C286] font-bold font-mono">
                 {activeLocation.tables.filter((t) => t.status === 'available').length} szabad asztal
               </span>
               <button
+                type="button"
                 onClick={handleStartBookingGeneral}
-                className="flex items-center gap-1.5 px-4 py-2 bg-[#F6F1E7] text-[#1C2C20] font-black text-xs rounded-xl shadow-xs hover:bg-white transition-colors cursor-pointer font-serif"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#F6F1E7] text-[#1C2C20] font-black text-xs rounded-xl shadow-xs hover:bg-white transition-colors cursor-pointer font-serif"
               >
                 <span>Asztal kiválasztása</span>
                 <ArrowRight className="w-3.5 h-3.5 text-[#C88A36]" />
@@ -892,7 +976,7 @@ export default function App() {
         onClose={() => setIsPrivacyPolicyOpen(false)}
       />
 
-      {/* L. Organizer Admin Panel Modal (with 8-day cancellation rule & password ujbuda2026) */}
+      {/* L. Organizer Admin Panel Modal (with 8-day cancellation rule, password UBZS27, multi-tab xlsx export) */}
       <AdminPanelModal
         isOpen={isAdminOpen}
         locations={locations}
@@ -902,9 +986,13 @@ export default function App() {
         reviews={reviews}
         onClose={handleCloseAdmin}
         onCancelBooking={handleCancelBooking}
+        onCancelKidsTable={handleCancelKidsTable}
         onDeleteVolunteer={handleDeleteVolunteer}
         onDeleteCommercial={handleDeleteCommercial}
         onDeleteMusician={handleDeleteMusician}
+        onApproveReview={handleApproveReview}
+        onRejectReview={handleRejectReview}
+        onDeleteReview={handleDeleteReview}
       />
 
     </div>

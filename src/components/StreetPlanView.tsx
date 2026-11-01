@@ -342,8 +342,8 @@ export const StreetPlanView: React.FC<StreetPlanViewProps> = ({
                 {/* 2. CENTRAL STREET: NORTH & SOUTH TABLE ROWS + PROMENADE */}
                 <div className="flex flex-col">
                   
-                  {/* NORTH SIDEWALK (Asztalok 1–18) */}
-                  <div className="bg-[#FAF7F2] p-2.5 sm:p-3 border-b border-stone-300 relative z-20">
+                  {/* NORTH SIDEWALK (Asztalok 1–18) - Highest z-index (z-40) so downwards tooltips never get covered */}
+                  <div className="bg-[#FAF7F2] p-2.5 sm:p-3 border-b border-stone-300 relative z-40">
                     <div className="flex items-center justify-between mb-1.5 text-[11px] font-bold text-stone-700 uppercase tracking-wider">
                       <span>Északi utcafront (Járda észak · standok 1 – 18)</span>
                       <span className="text-[10px] text-stone-500 font-normal">250×100 cm hasznos standhely</span>
@@ -364,7 +364,7 @@ export const StreetPlanView: React.FC<StreetPlanViewProps> = ({
                   </div>
 
                   {/* PEDESTRIAN CORSO / WALKWAY */}
-                  <div className="bg-[#CFC4B2] py-3 px-4 border-b border-stone-300 relative z-10 flex flex-wrap items-center justify-between gap-2">
+                  <div className="bg-[#CFC4B2] py-3 px-4 border-b border-stone-300 relative z-20 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2 bg-[#FAF7F2] border border-amber-300/80 px-2.5 py-1 rounded-md text-[11px] font-medium text-stone-900 shadow-2xs">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-800 shrink-0" />
                       <span>Középső 4,5 m-es vásárlói folyosó: akadálymentes babakocsival is</span>
@@ -376,7 +376,7 @@ export const StreetPlanView: React.FC<StreetPlanViewProps> = ({
                   </div>
 
                   {/* SOUTH SIDEWALK (Asztalok 19–36) */}
-                  <div className="bg-[#FAF7F2] p-2.5 sm:p-3 relative z-20">
+                  <div className="bg-[#FAF7F2] p-2.5 sm:p-3 relative z-10">
                     <div className="flex items-center justify-between mb-1.5 text-[11px] font-bold text-stone-700 uppercase tracking-wider">
                       <span>Déli utcafront (Járda dél · standok 19 – 36)</span>
                       <span className="text-[10px] text-stone-500 font-normal">250×100 cm hasznos standhely</span>
@@ -462,6 +462,58 @@ export const StreetPlanView: React.FC<StreetPlanViewProps> = ({
             </div>
           </div>
         </div>
+
+        {/* RESPONSIVE SELECTED/TOUCHED STAND PREVIEW CARD (Visible on Mobile Tap & Desktop Selection) */}
+        {(() => {
+          const activeTable = location.tables.find((t) => t.id === (focusedTableId || selectedTableId));
+          if (!activeTable) return null;
+          const isAvail = activeTable.status === 'available';
+          const maskedName = activeTable.reservedBy ? formatGdprName(activeTable.reservedBy.name) : '';
+
+          return (
+            <div className="mt-4 bg-[#FCFAF6] border-2 border-[#C88A36] rounded-xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs animate-in fade-in duration-150">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-serif font-black px-2 py-0.5 bg-[#1A3626] text-[#E7C286] rounded text-xs">
+                    Stand #{activeTable.id}
+                  </span>
+                  <span className="font-bold text-stone-800">
+                    {activeTable.side === 'north' ? 'Északi utcafront' : 'Déli utcafront'} · 250×100 cm
+                  </span>
+                  <span
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded ${
+                      isAvail ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-700'
+                    }`}
+                  >
+                    {isAvail ? 'Szabad asztal' : 'Foglalt stand'}
+                  </span>
+                </div>
+                {activeTable.reservedBy ? (
+                  <div className="text-stone-700">
+                    <span className="font-bold text-stone-900">Árus: {maskedName}</span>
+                    {activeTable.reservedBy.note && (
+                      <span className="italic text-stone-600 block mt-0.5">"{activeTable.reservedBy.note}"</span>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-stone-600">
+                    Szabad asztal! Részvételi hozzájárulás: <strong>4 050 Ft</strong> helyi lakosnak (-10%) / <strong>4 500 Ft</strong> kerületi lakosnak.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onSelectTable(activeTable)}
+                  className="px-4 py-2 bg-[#1A3626] hover:bg-[#254834] text-[#E7C286] font-serif font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  {isAvail ? 'Stand lefoglalása →' : 'Stand adatlap megtekintése →'}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* BOTTOM METRIC STRIP */}
         <div className="mt-4 bg-white rounded-xl border border-stone-300 p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">

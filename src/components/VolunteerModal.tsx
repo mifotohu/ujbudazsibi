@@ -80,16 +80,40 @@ export const VolunteerModal: React.FC<VolunteerModalProps> = ({
       }),
     };
 
-    // Dispatches notification to ujbudazsibi@gmail.com
+    // Detailed front-end descriptions for volunteer tasks
+    const taskDetailsList = selectedTasks.map((tId) => {
+      const taskObj = VOLUNTEER_TASKS.find((v) => v.id === tId);
+      return taskObj ? `${taskObj.title} [${taskObj.timeSlot}]` : tId;
+    });
+    const taskDetailsText = taskDetailsList.length > 0 ? taskDetailsList.join('; ') : 'Egyedi felajánlás';
+    const locFrontendText = `${loc.name} (${loc.streetName}) — ${loc.weekendDates}`;
+    const standFrontendText = 'Közösségi önkéntes segítői szerepkör';
+
+    const readableSummary = `Szerepkör: Közösségi önkéntes segítő
+Helyszín: ${locFrontendText}
+Önkéntes neve: ${fullName}
+Elérhetőség: ${email} | ${phone}
+Vállalt feladat(ok): ${taskDetailsText}
+Egyéb segítség / felajánlás: ${otherOffer.trim() || 'Nincs külön megjegyzés'}
+Jelentkezés rögzítve: ${newVol.createdAt}`;
+
+    // Dispatches notification to ujbudazsibi@gmail.com and the applicant
     await sendEmailNotification({
       to: 'ujbudazsibi@gmail.com',
-      subject: `[Újbudazsibi Önkéntes] Új segítő jelentkezett: ${fullName}`,
+      subject: `[Újbudazsibi Önkéntes] Új segítő jelentkezett: ${fullName} (${loc.name})`,
+      applicantName: fullName,
+      applicantEmail: email,
+      applicantPhone: phone,
+      standText: standFrontendText,
+      locationText: locFrontendText,
+      categoryText: taskDetailsText,
+      readableDetails: readableSummary,
       htmlContent: `
-        <h3>Új Önkéntes Jelentkezés</h3>
+        <h3 style="color: #1a3626; font-family: serif;">Új Önkéntes Jelentkezés</h3>
         <p><strong>Név:</strong> ${fullName}</p>
         <p><strong>Elérhetőség:</strong> ${phone} | ${email}</p>
-        <p><strong>Helyszín:</strong> ${loc.name}</p>
-        <p><strong>Választott feladatok:</strong> ${selectedTasks.join(', ')}</p>
+        <p><strong>Helyszín:</strong> ${locFrontendText}</p>
+        <p><strong>Választott feladatok:</strong> ${taskDetailsText}</p>
         <p><strong>Egyéb felajánlás:</strong> ${otherOffer || 'Nincs'}</p>
       `,
     });

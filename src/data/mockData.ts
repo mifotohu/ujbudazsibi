@@ -197,7 +197,7 @@ export const INITIAL_LOCATIONS: LocationData[] = [
     postalCodes: ['1111', '1114'], // Exact neighborhood postal codes for 4050 Ft
     weekendDates: '2026. Május 2–3. (szombat–vasárnap)',
     dateBadge: 'Május 2–3.',
-    eventDateIso: addDays(today, 5), // 5 days away: tests the < 8 days rule!
+    eventDateIso: addDays(today, 16), // > 8 days away: allows testing cancellation & table release!
     description: 'Kulturális negyed hangulata platánfák alatt, művészeti kávézók szomszédságában, zöld sétálóövezetben.',
     transport: 'M4 metró, 47/49 villamos (Szent Gellért tér megálló)',
     coordinates: '47.4815° N, 19.0521° E',
@@ -489,6 +489,8 @@ export const INITIAL_REVIEWS: MarketReview[] = [
     organizationRating: 5,
     feedbackText: 'Nagyon barátságos volt a hangulat a Bartókon! Végre egy igazi közösségi vásár, ahol a szomszédokkal is lehetett beszélgetni.',
     sellerFeedback: 'A 20-as asztalnál a könyves árus bácsi elképesztően kedves volt, régi József Attila kötetet találtam nála.',
+    publicAllowed: true,
+    status: 'approved',
     submittedAt: '2026-10-29',
   },
   {
@@ -498,6 +500,8 @@ export const INITIAL_REVIEWS: MarketReview[] = [
     organizationRating: 4,
     feedbackText: 'A Zöld Doboz ötlet zseniális, 3 szép szobanövény palántát hoztam el a kislányommal. Jó lenne több árnyékoló pad a sétányra.',
     sellerFeedback: '',
+    publicAllowed: true,
+    status: 'approved',
     submittedAt: '2026-10-30',
   },
 ];

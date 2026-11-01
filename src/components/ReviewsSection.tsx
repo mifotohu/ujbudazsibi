@@ -20,17 +20,22 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
   reviews,
   onOpenReviewModal,
 }) => {
-  // Calculate average ratings
-  const avgRating = reviews.length > 0
-    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+  // Only display reviews that are approved by admin and not marked private
+  const publicReviews = reviews.filter(
+    (r) => r.status === 'approved' && r.publicAllowed !== false
+  );
+
+  // Calculate average ratings from public reviews
+  const avgRating = publicReviews.length > 0
+    ? (publicReviews.reduce((sum, r) => sum + r.rating, 0) / publicReviews.length).toFixed(1)
     : '5.0';
 
-  const avgAtmosphere = reviews.length > 0
-    ? (reviews.reduce((sum, r) => sum + r.atmosphereRating, 0) / reviews.length).toFixed(1)
+  const avgAtmosphere = publicReviews.length > 0
+    ? (publicReviews.reduce((sum, r) => sum + r.atmosphereRating, 0) / publicReviews.length).toFixed(1)
     : '5.0';
 
-  const avgOrg = reviews.length > 0
-    ? (reviews.reduce((sum, r) => sum + r.organizationRating, 0) / reviews.length).toFixed(1)
+  const avgOrg = publicReviews.length > 0
+    ? (publicReviews.reduce((sum, r) => sum + r.organizationRating, 0) / publicReviews.length).toFixed(1)
     : '4.9';
 
   return (
@@ -76,7 +81,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                 Összesített elégedettség
               </span>
               <span className="text-[11px] text-[#544C42]">
-                {reviews.length} lakossági értékelés alapján
+                {publicReviews.length} ellenőrzött lakossági értékelés
               </span>
             </div>
           </div>
@@ -104,14 +109,14 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
           <div className="flex items-center gap-2 text-xs text-[#544C42] sm:pl-4">
             <ShieldCheck className="w-5 h-5 text-[#254834] shrink-0" />
             <span className="leading-tight">
-              100% valódi helyi lakossági visszajelzés, moderáció nélkül.
+              100% valódi helyi lakossági visszajelzés a vásár szervezőinek.
             </span>
           </div>
         </div>
 
         {/* Reviews Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {reviews.map((rev) => (
+          {publicReviews.map((rev) => (
             <div
               key={rev.id}
               className="bg-[#FCFAF6] border border-[#D8CEBD] rounded-2xl p-5 sm:p-6 shadow-2xs hover:border-[#C88A36] transition-all flex flex-col justify-between relative group"

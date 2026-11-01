@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import * as XLSX from 'xlsx';
 import {
   LocationData,
   TableData,
@@ -7,9 +8,10 @@ import {
   StreetMusicianApplication,
   MarketReview,
   KidsFleaTable,
+  formatGdprName,
 } from '../types/market';
-import { CATEGORIES } from '../data/mockData';
-import { getSentEmails, SentEmailRecord } from '../lib/supabase';
+import { CATEGORIES, VOLUNTEER_TASKS } from '../data/mockData';
+import { getSentEmails } from '../lib/supabase';
 import {
   X,
   ShieldAlert,
@@ -37,6 +39,13 @@ import {
   MessageSquare,
   Database,
   Building,
+  FileSpreadsheet,
+  Download,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Check,
+  RefreshCw,
 } from 'lucide-react';
 
 interface AdminPanelModalProps {
@@ -48,9 +57,13 @@ interface AdminPanelModalProps {
   reviews: MarketReview[];
   onClose: () => void;
   onCancelBooking: (locationId: string, tableId: number, sellerName: string) => void;
+  onCancelKidsTable: (locationId: string, tableId: string) => void;
   onDeleteVolunteer: (volunteerId: string) => void;
   onDeleteCommercial: (vendorId: string) => void;
   onDeleteMusician: (musicianId: string) => void;
+  onApproveReview: (reviewId: string) => void;
+  onRejectReview: (reviewId: string) => void;
+  onDeleteReview: (reviewId: string) => void;
 }
 
 const DEFAULT_ADMIN_PASSWORD = 'UBZS27';
@@ -64,9 +77,13 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   reviews,
   onClose,
   onCancelBooking,
+  onCancelKidsTable,
   onDeleteVolunteer,
   onDeleteCommercial,
   onDeleteMusician,
+  onApproveReview,
+  onRejectReview,
+  onDeleteReview,
 }) => {
   if (!isOpen) return null;
 
@@ -74,14 +91,25 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordError, setPasswordError] = useState('');
 
-  const [activeTab, setActiveTab] = useState<'sellers' | 'commercial' | 'kids_flea' | 'musicians' | 'volunteers' | 'reviews' | 'emails' | 'supabase'>('sellers');
+  const [activeTab, setActiveTab] = useState<
+    'sellers' | 'commercial' | 'kids_flea' | 'musicians' | 'volunteers' | 'reviews' | 'emails' | 'supabase'
+  >('sellers');
   const [selectedLocationFilter, setSelectedLocationFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [confirmCancelTarget, setConfirmCancelTarget] = useState<{
-    locationId: string;
-    tableId: number;
-    sellerName: string;
-    locationName: string;
+
+  // Target for generic deletion confirmations
+  const [confirmDeleteTarget, setConfirmDeleteTarget] = useState<{
+    type: 'seller' | 'commercial' | 'kids' | 'musician' | 'volunteer' | 'review';
+    id: string | number;
+    title: string;
+    details: string;
+    extraId?: string;
+  } | null>(null);
+
+  const [exportFeedback, setExportFeedback] = useState<{
+    count: number;
+    sheetCount: number;
+    fileName: string;
   } | null>(null);
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
@@ -149,19 +177,384 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     return true;
   });
 
-  const totalSellerRevenue = allBookings.reduce((sum, b) => sum + (b.table.reservedBy?.amountPaid || b.table.price), 0);
+  const totalSellerRevenue = allBookings.reduce(
+    (sum, b) => sum + (b.table.reservedBy?.amountPaid || b.table.price),
+    0
+  );
   const totalCommercialRevenue = commercialVendors.reduce((sum, v) => sum + v.feePaid, 0);
   const totalCombinedRevenue = totalSellerRevenue + totalCommercialRevenue;
 
-  const handleExecuteCancel = () => {
-    if (confirmCancelTarget) {
+  // MULTI-TAB GOOGLE SHEETS / EXCEL (.XLSX) EXPORT FUNCTION
+  const handleExportToGoogleSheets = () => {
+    const wb = XLSX.utils.book_new();
+
+    // 1. Összesített lista (Summary Tab)
+    const summaryRows: (string | number)[][] = [
+      [
+        'Típus',
+        'Helyszín és időpont',
+        'Stand / Szerepkör',
+        'Jelentkező / Kapcsolattartó',
+        'Cégnév / Gyermek neve',
+        'E-mail cím',
+        'Telefonszám',
+        'Lakcím / Számlázási cím',
+        'Kínálat / Tevékenység / Műsor',
+        'Kategóriák / Feladatok',
+        'Befizetett hozzájárulás (Ft)',
+        'Azonosító',
+        'Státusz',
+      ],
+    ];
+
+    // 2. Lakossági árusok (Sellers Tab)
+    const sellerRows: (string | number)[][] = [
+      [
+        'Stand sorszáma',
+        'Helyszín',
+        'Hétvége időpontja',
+        'Árus neve',
+        'E-mail cím',
+        'Telefonszám',
+        'Újbudai lakcím',
+        'Árusított holmik leírása',
+        'Kategóriák',
+        'Befizetett díj (Ft)',
+        'Foglalási azonosító',
+        'Vásárig hátralévő napok',
+        'Lemondható még? (8 napos szabály)',
+      ],
+    ];
+
+    allBookings.forEach((b) => {
+      const res = b.table.reservedBy;
+      const catLabels = (res?.categories || [])
+        .map((cId) => CATEGORIES.find((c) => c.id === cId)?.label || cId)
+        .join('; ');
+      const standDesc = `Stand #${b.table.id} (${b.table.side === 'north' ? 'Északi' : 'Déli'} utcafront)`;
+      const canCancel = b.daysRemaining >= 8 ? 'Igen (>= 8 nap)' : 'Nem (< 8 nap lezárva)';
+
+      summaryRows.push([
+        'Lakossági árus',
+        `${b.locationName} (${b.weekendDates})`,
+        standDesc,
+        res?.name || '',
+        '-',
+        res?.email || '',
+        res?.phone || '',
+        res?.districtAddress || '',
+        res?.note || '',
+        catLabels,
+        res?.amountPaid || b.table.price,
+        res?.bookingRef || `STAND-${b.table.id}`,
+        `Rögzítve (${b.daysRemaining} nap a vásárig)`,
+      ]);
+
+      sellerRows.push([
+        `#${b.table.id}`,
+        b.locationName,
+        b.weekendDates,
+        res?.name || '',
+        res?.email || '',
+        res?.phone || '',
+        res?.districtAddress || '',
+        res?.note || '',
+        catLabels,
+        res?.amountPaid || b.table.price,
+        res?.bookingRef || `STAND-${b.table.id}`,
+        b.daysRemaining,
+        canCancel,
+      ]);
+    });
+
+    // 3. Céges partnerek (Commercial Tab)
+    const commercialRows: (string | number)[][] = [
+      [
+        'Koncesszió típusa',
+        'Helyszín',
+        'Hétvége',
+        'Cégnév',
+        'Adószám',
+        'Számlázási cím',
+        'Kapcsolattartó neve',
+        'E-mail cím',
+        'Telefonszám',
+        'Kínálat / Program / Menü',
+        'Befizetett részvételi díj (Ft)',
+        'Státusz',
+      ],
+    ];
+
+    commercialVendors.forEach((v) => {
+      const typeLabel = v.type === 'grill_corner' ? 'Grillsarok & Büfé' : 'Gyereksarok koncesszió';
+      summaryRows.push([
+        typeLabel,
+        `${v.locationName} (${v.weekendDates})`,
+        '8x8 m vállalkozói terület',
+        v.contactPerson,
+        v.companyName,
+        v.email,
+        v.phone,
+        `${v.billingAddress} (Adószám: ${v.taxNumber})`,
+        v.programOrMenuOffer,
+        v.type === 'grill_corner' ? 'Gasztronómia' : 'Gyermekprogramok',
+        v.feePaid,
+        v.id,
+        v.status === 'approved' ? 'Jóváhagyva' : 'Függőben',
+      ]);
+
+      commercialRows.push([
+        typeLabel,
+        v.locationName,
+        v.weekendDates,
+        v.companyName,
+        v.taxNumber,
+        v.billingAddress,
+        v.contactPerson,
+        v.email,
+        v.phone,
+        v.programOrMenuOffer,
+        v.feePaid,
+        v.status === 'approved' ? 'Jóváhagyva' : 'Függőben',
+      ]);
+    });
+
+    // 4. Gyerekzsibi (Kids Flea Tab)
+    const kidsRows: (string | number)[][] = [
+      [
+        'Asztal azonosító',
+        'Helyszín',
+        'Hétvége',
+        'Gyermek árus neve',
+        'Gyermek életkora',
+        'Kísérő szülő neve',
+        'Szülő e-mail címe',
+        'Szülő telefonszáma',
+        'Árusított játékok / holmik leírása',
+        'Részvételi hozzájárulás (Ft)',
+        'Státusz',
+      ],
+    ];
+
+    locations.forEach((loc) => {
+      loc.kidsFleaTables.forEach((kt) => {
+        if (kt.status === 'reserved' && kt.reservedBy) {
+          summaryRows.push([
+            'Gyerekzsibi',
+            `${loc.name} (${loc.weekendDates})`,
+            kt.name,
+            kt.reservedBy.parentName,
+            `${kt.reservedBy.childName} (${kt.reservedBy.childAge} éves)`,
+            kt.reservedBy.email,
+            kt.reservedBy.phone,
+            'Budapest XI. kerület',
+            kt.reservedBy.itemsDescription,
+            'Játékok, mesekönyvek, gyermekruhák',
+            0,
+            kt.id,
+            'Lefoglalva (Díjmentes)',
+          ]);
+
+          kidsRows.push([
+            kt.id,
+            loc.name,
+            loc.weekendDates,
+            kt.reservedBy.childName,
+            `${kt.reservedBy.childAge} éves`,
+            kt.reservedBy.parentName,
+            kt.reservedBy.email,
+            kt.reservedBy.phone,
+            kt.reservedBy.itemsDescription,
+            0,
+            'Lefoglalva',
+          ]);
+        }
+      });
+    });
+
+    // 5. Utcazenészek (Musicians Tab)
+    const musicianRows: (string | number)[][] = [
+      [
+        'Fellépő / Zenekar neve',
+        'Helyszín',
+        'Kapcsolattartó',
+        'E-mail cím',
+        'Telefonszám',
+        'Zenei stílus',
+        'Hangszerek',
+        'Választott idősáv',
+        'Külön észrevétel',
+        'Státusz',
+      ],
+    ];
+
+    musicians.forEach((m) => {
+      summaryRows.push([
+        'Utcazenész',
+        m.locationName,
+        'Utcazenész szőnyeg',
+        m.contactName,
+        m.musicianOrBandName,
+        m.email,
+        m.phone,
+        '-',
+        m.note || 'Akusztikus fellépés',
+        `${m.genre} (${m.instruments || 'akusztikus'})`,
+        0,
+        m.id,
+        'Jelentkezés rögzítve',
+      ]);
+
+      musicianRows.push([
+        m.musicianOrBandName,
+        m.locationName,
+        m.contactName,
+        m.email,
+        m.phone,
+        m.genre,
+        m.instruments || 'akusztikus hangszer',
+        m.preferredTimeSlot,
+        m.note || '-',
+        'Rögzítve',
+      ]);
+    });
+
+    // 6. Önkéntesek (Volunteers Tab)
+    const volunteerRows: (string | number)[][] = [
+      [
+        'Önkéntes neve',
+        'Választott májusi helyszín',
+        'E-mail cím',
+        'Telefonszám',
+        'Vállalt feladat(ok) részletesen',
+        'Egyéb felajánlás / segítség',
+        'Regisztráció ideje',
+        'Státusz',
+      ],
+    ];
+
+    volunteers.forEach((vol) => {
+      const taskNames = vol.selectedTaskIds
+        .map((tId) => {
+          const t = VOLUNTEER_TASKS.find((vt) => vt.id === tId);
+          return t ? `${t.title} [${t.timeSlot}]` : tId;
+        })
+        .join('; ');
+
+      summaryRows.push([
+        'Önkéntes segítő',
+        vol.locationName,
+        'Közösségi segítői pont',
+        vol.fullName,
+        '-',
+        vol.email,
+        vol.phone,
+        '-',
+        vol.otherOffer || 'Általános segítő',
+        taskNames || 'Egyedi felajánlás',
+        0,
+        vol.id,
+        'Önkéntes rögzítve',
+      ]);
+
+      volunteerRows.push([
+        vol.fullName,
+        vol.locationName,
+        vol.email,
+        vol.phone,
+        taskNames || 'Egyedi felajánlás',
+        vol.otherOffer || 'Nincs külön megjegyzés',
+        vol.createdAt,
+        'Aktív segítő',
+      ]);
+    });
+
+    // 7. Lakossági vélemények (Reviews Tab)
+    const reviewRows: (string | number)[][] = [
+      [
+        'Értékelés (1-5 csillag)',
+        'Hangulat (1-5)',
+        'Szervezés (1-5)',
+        'Beküldő megnevezése',
+        'Szöveges vélemény',
+        'Belső észrevétel konkrét árusról (szervezői)',
+        'Nyilvános oldalon megjelenhet?',
+        'Jóváhagyási státusz',
+        'Beküldés ideje',
+      ],
+    ];
+
+    reviews.forEach((r) => {
+      reviewRows.push([
+        `${r.rating} / 5`,
+        `${r.atmosphereRating} / 5`,
+        `${r.organizationRating} / 5`,
+        r.authorName || 'Anonim',
+        r.feedbackText,
+        r.sellerFeedback || '-',
+        r.publicAllowed === false ? 'NEM (Csak belső adminnak)' : 'IGEN (Nyilvános)',
+        r.status === 'approved' ? 'Jóváhagyva' : r.status === 'rejected' ? 'Elutasítva' : 'Függőben',
+        r.submittedAt,
+      ]);
+    });
+
+    // Append all separate sheets to the workbook
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Összesítő lista');
+
+    const wsSellers = XLSX.utils.aoa_to_sheet(sellerRows);
+    XLSX.utils.book_append_sheet(wb, wsSellers, 'Lakossági árusok');
+
+    const wsCommercial = XLSX.utils.aoa_to_sheet(commercialRows);
+    XLSX.utils.book_append_sheet(wb, wsCommercial, 'Céges partnerek');
+
+    const wsKids = XLSX.utils.aoa_to_sheet(kidsRows);
+    XLSX.utils.book_append_sheet(wb, wsKids, 'Gyerekzsibi');
+
+    const wsMusicians = XLSX.utils.aoa_to_sheet(musicianRows);
+    XLSX.utils.book_append_sheet(wb, wsMusicians, 'Utcazenészek');
+
+    const wsVolunteers = XLSX.utils.aoa_to_sheet(volunteerRows);
+    XLSX.utils.book_append_sheet(wb, wsVolunteers, 'Önkéntesek');
+
+    const wsReviews = XLSX.utils.aoa_to_sheet(reviewRows);
+    XLSX.utils.book_append_sheet(wb, wsReviews, 'Vélemények');
+
+    const fileName = `ujbudazsibi_jelentkezok_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    const totalCount =
+      allBookings.length + commercialVendors.length + musicians.length + volunteers.length;
+
+    setExportFeedback({
+      count: totalCount,
+      sheetCount: 7,
+      fileName,
+    });
+  };
+
+  const executeConfirmedDeletion = () => {
+    if (!confirmDeleteTarget) return;
+
+    if (confirmDeleteTarget.type === 'seller') {
       onCancelBooking(
-        confirmCancelTarget.locationId,
-        confirmCancelTarget.tableId,
-        confirmCancelTarget.sellerName
+        confirmDeleteTarget.extraId as string,
+        Number(confirmDeleteTarget.id),
+        confirmDeleteTarget.title
       );
-      setConfirmCancelTarget(null);
+    } else if (confirmDeleteTarget.type === 'commercial') {
+      onDeleteCommercial(String(confirmDeleteTarget.id));
+    } else if (confirmDeleteTarget.type === 'kids') {
+      onCancelKidsTable(confirmDeleteTarget.extraId as string, String(confirmDeleteTarget.id));
+    } else if (confirmDeleteTarget.type === 'musician') {
+      onDeleteMusician(String(confirmDeleteTarget.id));
+    } else if (confirmDeleteTarget.type === 'volunteer') {
+      onDeleteVolunteer(String(confirmDeleteTarget.id));
+    } else if (confirmDeleteTarget.type === 'review') {
+      onDeleteReview(String(confirmDeleteTarget.id));
     }
+
+    setConfirmDeleteTarget(null);
   };
 
   return (
@@ -179,7 +572,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 Újbudazsibi szervezői adminisztráció
               </h3>
               <p className="text-xs text-stone-600 mt-0.5">
-                Védett felület (ujbudazsibi.hu/admin) · E-mail cím: ujbudazsibi@gmail.com
+                Védett felület (ujbudazsibi.hu/admin) · Szervezői e-mail cím: <strong>ujbudazsibi@gmail.com</strong>
               </p>
             </div>
           </div>
@@ -239,13 +632,13 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               <div>
                 <span className="text-stone-500 block">Összes standbevétel</span>
                 <span className="text-base font-bold text-emerald-800 font-mono tabular-nums">
-                  {totalCombinedRevenue.toLocaleString()} Ft
+                  {totalCombinedRevenue.toLocaleString('hu-HU')} Ft
                 </span>
               </div>
               <div>
-                <span className="text-stone-500 block">Gyerekzsibi & Zenészek</span>
+                <span className="text-stone-500 block">Céges & Zenészek</span>
                 <span className="text-base font-bold text-blue-900 tabular-nums">
-                  4 kis asztal · {musicians.length} fellépő
+                  {commercialVendors.length} cég · {musicians.length} fellépő
                 </span>
               </div>
               <div>
@@ -256,70 +649,77 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               </div>
             </div>
 
-            {/* Tab & Filter bar */}
-            <div className="bg-[#FAF8F5] px-5 sm:px-6 py-2.5 border-b border-stone-200 flex flex-col md:flex-row md:items-center justify-between gap-3 overflow-x-auto">
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            {/* TAB BAR (Horizontally scrollable with clear badges) */}
+            <div className="bg-[#FAF8F5] px-5 sm:px-6 py-2.5 border-b border-stone-200 overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-1.5 min-w-max">
                 <button
+                  type="button"
                   onClick={() => setActiveTab('sellers')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                     activeTab === 'sellers'
-                      ? 'bg-stone-900 text-white shadow-xs'
+                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
                       : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
                   }`}
                 >
                   Árusok ({allBookings.length})
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('commercial')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                     activeTab === 'commercial'
-                      ? 'bg-stone-900 text-white shadow-xs'
+                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
                       : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
                   }`}
                 >
-                  Grill & Gyereksarok ({commercialVendors.length})
+                  Céges partnerek ({commercialVendors.length})
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('kids_flea')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                     activeTab === 'kids_flea'
-                      ? 'bg-stone-900 text-white shadow-xs'
+                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
                       : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
                   }`}
                 >
                   Gyerekzsibi
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('musicians')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                     activeTab === 'musicians'
-                      ? 'bg-stone-900 text-white shadow-xs'
+                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
                       : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
                   }`}
                 >
                   Zenészek ({musicians.length})
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('volunteers')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                     activeTab === 'volunteers'
-                      ? 'bg-stone-900 text-white shadow-xs'
+                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
                       : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
                   }`}
                 >
                   Önkéntesek ({volunteers.length})
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('reviews')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                     activeTab === 'reviews'
-                      ? 'bg-stone-900 text-white shadow-xs'
+                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
                       : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
                   }`}
                 >
                   Vélemények ({reviews.length})
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('emails')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
                     activeTab === 'emails'
@@ -331,22 +731,38 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   <span>Postafiók ({getSentEmails().length})</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('supabase')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                     activeTab === 'supabase'
-                      ? 'bg-stone-900 text-white shadow-xs'
+                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
                       : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
                   }`}
                 >
                   Vercel & Supabase
                 </button>
               </div>
+            </div>
 
+            {/* ACTION & FILTER TOOLBAR (Fully responsive, clean layout without broken textarea) */}
+            <div className="bg-[#F6F2EB] px-5 sm:px-6 py-2.5 border-b border-stone-200 flex flex-wrap items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportToGoogleSheets}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-[#1A3626] hover:bg-[#254d37] text-[#E7C286] border border-[#C88A36]/40 shadow-xs transition-colors cursor-pointer whitespace-nowrap font-serif"
+                  title="Összes jelentkező exportálása Google Táblázatba (.xlsx külön fülekkel)"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                  <span>Google Sheets export (.xlsx 7 füllel)</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 flex-1 sm:flex-initial justify-end">
                 <select
                   value={selectedLocationFilter}
                   onChange={(e) => setSelectedLocationFilter(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs rounded-lg border border-stone-300 bg-white text-stone-700"
+                  className="px-3 py-1.5 text-xs rounded-xl border border-stone-300 bg-white text-stone-800 font-medium focus:ring-1 focus:ring-emerald-700"
                 >
                   <option value="all">Minden helyszín</option>
                   {locations.map((loc) => (
@@ -359,10 +775,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Keresés..."
+                    placeholder="Keresés név, stand, cím..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-7 pr-2.5 py-1.5 text-xs rounded-lg border border-stone-300 bg-white w-32 sm:w-44 focus:outline-none"
+                    className="pl-7 pr-3 py-1.5 text-xs rounded-xl border border-stone-300 bg-white w-40 sm:w-56 focus:outline-none focus:ring-1 focus:ring-emerald-700"
                   />
                   <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2 top-2" />
                 </div>
@@ -372,19 +788,56 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
             {/* Content Body */}
             <div className="p-5 sm:p-6 flex-1 overflow-y-auto space-y-4">
               
-              {/* TAB 1: SELLERS / ÁRUSOK with 8-day cancellation rule */}
+              {/* Google Sheets export feedback banner */}
+              {exportFeedback && (
+                <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-emerald-950 shadow-xs">
+                  <div className="flex items-start gap-2.5">
+                    <div className="p-2 rounded-lg bg-[#1A3626] text-amber-300 shrink-0 mt-0.5">
+                      <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-emerald-950 block text-sm font-serif">
+                        Sikeres Google Sheets exportálás ({exportFeedback.fileName})!
+                      </span>
+                      <span className="text-emerald-800 leading-relaxed block mt-0.5">
+                        A táblázat <strong>7 különálló fülön</strong> tartalmazza az adatokat: <em>Összesítő, Lakossági árusok, Céges partnerek, Gyerekzsibi, Utcazenészek, Önkéntesek, Vélemények</em>. Nyisd meg Excelben vagy húzd be a Google Drive / Google Sheets felületére!
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                    <a
+                      href="https://sheets.new"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#1A3626] hover:bg-[#254d37] text-[#E7C286] font-bold text-xs transition-colors shadow-xs"
+                      title="Google Sheets megnyitása"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Google Sheets (sheets.new) ↗</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setExportFeedback(null)}
+                      className="px-2.5 py-2 rounded-lg border border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-semibold cursor-pointer text-xs"
+                    >
+                      Bezárás
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 1: SELLERS / ÁRUSOK */}
               {activeTab === 'sellers' && (
                 <div className="space-y-4">
-                  
                   {/* Strict 8-day rule notification */}
                   <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2.5 text-xs text-amber-950">
                     <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold block">
-                        8 napos elállási szabályzat működése:
+                        8 napos elállási szabályzat és asztaltörlés:
                       </span>
                       <span>
-                        Az árus foglalása a vásár előtt <strong>legkésőbb 8 nappal mondható le és törölhető</strong>. A törléssel az asztal automatikusan azonnal <strong>szabad státuszba kerül a térképen</strong>. 8 napon belül a rendszer a törlés gombot zárolja, így az asztal nem mondható le!
+                        Az árus foglalása a vásár előtt <strong>legkésőbb 8 nappal mondható le és törölhető</strong>. A törléssel az asztal automatikusan azonnal <strong>szabad státuszba kerül a térképen</strong>. 8 napon belül a rendszer a törlés gombot zárolja, így az asztal nem mondható le.
                       </span>
                     </div>
                   </div>
@@ -474,18 +927,20 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                   </span>
                                 </div>
                                 <span className="text-xs font-mono font-bold text-emerald-800 block tabular-nums">
-                                  {(b.table.reservedBy?.amountPaid || b.table.price).toLocaleString()} Ft
+                                  {(b.table.reservedBy?.amountPaid || b.table.price).toLocaleString('hu-HU')} Ft
                                 </span>
                               </div>
 
                               {canCancel ? (
                                 <button
+                                  type="button"
                                   onClick={() =>
-                                    setConfirmCancelTarget({
-                                      locationId: b.locationId,
-                                      tableId: b.table.id,
-                                      sellerName: b.table.reservedBy?.name || '',
-                                      locationName: b.locationName,
+                                    setConfirmDeleteTarget({
+                                      type: 'seller',
+                                      id: b.table.id,
+                                      title: `Stand #${b.table.id} (${b.table.reservedBy?.name})`,
+                                      details: `${b.locationName} · ${b.weekendDates}. A törléssel az asztal azonnal felszabadul a térképen!`,
+                                      extraId: b.locationId,
                                     })
                                   }
                                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer"
@@ -509,59 +964,77 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 </div>
               )}
 
-              {/* TAB 2: COMMERCIAL VENDORS (GRILL & KIDS CORNER) */}
+              {/* TAB 2: COMMERCIAL VENDORS */}
               {activeTab === 'commercial' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-stone-600">
-                      Céges és egyéni vállalkozói kitelepülések a 8 × 8 méteres területekre (Gyereksarok & Grill).
+                      Céges és egyéni vállalkozói kitelepülések a 8 × 8 méteres zónákra (Gyereksarok & Grill).
                     </p>
-                    <span className="text-xs font-bold text-stone-900">
-                      Összes bevétel: {totalCommercialRevenue.toLocaleString()} Ft
+                    <span className="text-xs font-bold text-stone-900 font-mono">
+                      Összes bevétel: {totalCommercialRevenue.toLocaleString('hu-HU')} Ft
                     </span>
                   </div>
 
-                  <div className="space-y-3">
-                    {commercialVendors.map((v) => (
-                      <div key={v.id} className="bg-white rounded-xl border border-stone-200 p-4 shadow-2xs space-y-3">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                              {v.type === 'grill_corner' ? 'Grillsarok (35 000 Ft)' : 'Gyereksarok (15 000 Ft)'}
-                            </span>
-                            <h4 className="text-base font-bold text-stone-900 mt-1">
-                              {v.companyName}
-                            </h4>
-                            <p className="text-xs text-stone-500 font-mono">
-                              Adószám: {v.taxNumber} · Számlázási cím: {v.billingAddress}
-                            </p>
+                  {commercialVendors.length === 0 ? (
+                    <div className="p-10 text-center text-stone-500 text-xs bg-white rounded-xl border border-stone-200">
+                      Még nincs beérkezett céges jelentkezés.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {commercialVendors.map((v) => (
+                        <div key={v.id} className="bg-white rounded-xl border border-stone-200 p-4 shadow-2xs space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                {v.type === 'grill_corner' ? 'Grillsarok (35 000 Ft)' : 'Gyereksarok (15 000 Ft)'}
+                              </span>
+                              <h4 className="text-base font-bold text-stone-900 mt-1">
+                                {v.companyName}
+                              </h4>
+                              <p className="text-xs text-stone-500 font-mono">
+                                Adószám: {v.taxNumber} · Számlázási cím: {v.billingAddress}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-xs font-mono font-bold text-emerald-800 block">
+                                {v.feePaid.toLocaleString('hu-HU')} Ft
+                              </span>
+                              <span className="text-[10px] text-stone-500">{v.locationName}</span>
+                            </div>
                           </div>
-                          <span className="text-xs font-mono font-bold text-emerald-800">
-                            {v.feePaid.toLocaleString()} Ft (Fizetve)
-                          </span>
-                        </div>
 
-                        <div className="text-xs text-stone-700 bg-stone-50 p-2.5 rounded-lg border border-stone-200">
-                          <strong className="block text-stone-900">Program / Étlap és technológia:</strong>
-                          <span>{v.programOrMenuOffer}</span>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs text-stone-600 pt-1">
-                          <div className="flex items-center gap-3">
-                            <span>Kapcsolattartó: <strong>{v.contactPerson}</strong></span>
-                            <span>{v.phone}</span>
-                            <span>{v.email}</span>
+                          <div className="text-xs text-stone-700 bg-stone-50 p-2.5 rounded-lg border border-stone-200">
+                            <strong className="block text-stone-900">Program / Étlap és technológia:</strong>
+                            <span>{v.programOrMenuOffer}</span>
                           </div>
-                          <button
-                            onClick={() => onDeleteCommercial(v.id)}
-                            className="text-stone-400 hover:text-red-700 text-[11px] cursor-pointer"
-                          >
-                            Törlés
-                          </button>
+
+                          <div className="flex items-center justify-between text-xs text-stone-600 pt-1 border-t border-stone-100">
+                            <div className="flex items-center gap-3">
+                              <span>Kapcsolattartó: <strong>{v.contactPerson}</strong></span>
+                              <span>{v.phone}</span>
+                              <span>{v.email}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setConfirmDeleteTarget({
+                                  type: 'commercial',
+                                  id: v.id,
+                                  title: `${v.companyName} (${v.type === 'grill_corner' ? 'Grillsarok' : 'Gyereksarok'})`,
+                                  details: `${v.locationName} · ${v.weekendDates}. Törlés után az adatok azonnal eltávolításra kerülnek a rendszerből.`,
+                                })
+                              }
+                              className="text-red-700 hover:text-red-900 font-bold text-xs cursor-pointer flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Törlés</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -569,7 +1042,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               {activeTab === 'kids_flea' && (
                 <div className="space-y-4">
                   <p className="text-xs text-stone-600">
-                    A 4 kijelölt ingyenes gyermek stand állapota helyszínenként.
+                    A 4 kijelölt ingyenes gyermek stand állapota helyszínenként. A lefoglalt gyerekasztalok itt egy kattintással törölhetők és felszabadíthatók!
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {locations.map((loc) => (
@@ -579,22 +1052,49 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         </span>
                         <div className="space-y-1.5 pt-1">
                           {loc.kidsFleaTables.map((kt) => (
-                            <div key={kt.id} className="p-2 rounded border border-stone-200 text-xs flex items-center justify-between">
+                            <div key={kt.id} className="p-2.5 rounded border border-stone-200 text-xs flex items-center justify-between gap-2">
                               <div>
                                 <strong className="text-stone-900">{kt.name}</strong>
                                 {kt.reservedBy ? (
-                                  <span className="block text-[11px] text-stone-600">
-                                    {kt.reservedBy.childName} ({kt.reservedBy.childAge} év) · Szülő: {kt.reservedBy.parentName}
-                                  </span>
+                                  <div className="text-[11px] text-stone-600 mt-0.5">
+                                    Kisárus: <strong>{kt.reservedBy.childName}</strong> ({kt.reservedBy.childAge} év) · Szülő: {kt.reservedBy.parentName} ({kt.reservedBy.phone})
+                                    <div className="text-stone-500 italic mt-0.5">"{kt.reservedBy.itemsDescription}"</div>
+                                  </div>
                                 ) : (
                                   <span className="block text-[11px] text-emerald-700 font-semibold">
                                     Szabad, szülő által lefoglalható (0 Ft)
                                   </span>
                                 )}
                               </div>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${kt.status === 'reserved' ? 'bg-stone-200 text-stone-700' : 'bg-blue-100 text-blue-900'}`}>
-                                {kt.status === 'reserved' ? 'Foglalt' : 'Szabad'}
-                              </span>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                    kt.status === 'reserved'
+                                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                      : 'bg-blue-100 text-blue-900'
+                                  }`}
+                                >
+                                  {kt.status === 'reserved' ? 'Foglalt' : 'Szabad'}
+                                </span>
+                                {kt.status === 'reserved' && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setConfirmDeleteTarget({
+                                        type: 'kids',
+                                        id: kt.id,
+                                        title: `${kt.name} (${kt.reservedBy?.childName})`,
+                                        details: `${loc.name} · ${loc.weekendDates}. Az asztal azonnal újra szabaddá válik!`,
+                                        extraId: loc.id,
+                                      })
+                                    }
+                                    className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded cursor-pointer"
+                                    title="Gyerekzsibi asztal felszabadítása"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -620,7 +1120,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         <div className="flex items-start justify-between">
                           <div>
                             <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                              {m.preferredTimeSlot}
+                              {m.preferredTimeSlot} · {m.locationName}
                             </span>
                             <h4 className="text-base font-bold text-stone-900 mt-1">
                               {m.musicianOrBandName}
@@ -630,10 +1130,19 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                             </p>
                           </div>
                           <button
-                            onClick={() => onDeleteMusician(m.id)}
-                            className="text-stone-400 hover:text-red-700 text-xs cursor-pointer"
+                            type="button"
+                            onClick={() =>
+                              setConfirmDeleteTarget({
+                                type: 'musician',
+                                id: m.id,
+                                title: `${m.musicianOrBandName} (${m.contactName})`,
+                                details: `${m.locationName} · ${m.preferredTimeSlot}. A zenész jelentkezés törlődik az adatbázisból.`,
+                              })
+                            }
+                            className="text-red-600 hover:text-red-800 text-xs font-bold cursor-pointer flex items-center gap-1"
                           >
-                            Törlés
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Törlés</span>
                           </button>
                         </div>
                         <div className="flex items-center gap-3 text-xs text-stone-600 pt-1 border-t border-stone-100">
@@ -655,8 +1164,20 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       <div key={vol.id} className="bg-white rounded-xl border border-stone-200 p-4 shadow-2xs space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-sm text-stone-900">{vol.fullName}</span>
-                          <button onClick={() => onDeleteVolunteer(vol.id)} className="text-stone-400 hover:text-red-700 text-xs cursor-pointer">
-                            Törlés
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setConfirmDeleteTarget({
+                                type: 'volunteer',
+                                id: vol.id,
+                                title: `${vol.fullName} (${vol.locationName})`,
+                                details: `${vol.email} | ${vol.phone}. Az önkéntes véglegesen törlődik a nyilvántartásból.`,
+                              })
+                            }
+                            className="text-red-600 hover:text-red-800 text-xs font-bold cursor-pointer flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Törlés</span>
                           </button>
                         </div>
                         <div className="text-xs text-stone-600 space-y-0.5">
@@ -666,11 +1187,14 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         <div className="pt-1">
                           <span className="text-[10px] font-bold text-stone-500 uppercase block mb-1">Feladatok:</span>
                           <div className="flex flex-wrap gap-1">
-                            {vol.selectedTaskIds.map((tId) => (
-                              <span key={tId} className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-900 rounded border border-emerald-200">
-                                {tId}
-                              </span>
-                            ))}
+                            {vol.selectedTaskIds.map((tId) => {
+                              const tObj = VOLUNTEER_TASKS.find((vt) => vt.id === tId);
+                              return (
+                                <span key={tId} className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-900 rounded border border-emerald-200">
+                                  {tObj ? tObj.title : tId}
+                                </span>
+                              );
+                            })}
                           </div>
                         </div>
                         {vol.otherOffer && (
@@ -684,72 +1208,182 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 </div>
               )}
 
-              {/* TAB 6: ANONYMOUS REVIEWS */}
+              {/* TAB 6: REVIEWS (With Approval & Deletion moderation!) */}
               {activeTab === 'reviews' && (
                 <div className="space-y-3">
-                  <div className="p-3 bg-stone-100 border border-stone-300 rounded-xl text-xs text-stone-700 flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-stone-500 shrink-0" />
-                    <span>
-                      Az alábbi vélemények kizárólag a szervezői admin felületen láthatók, a frontenden nem publikusak!
-                    </span>
+                  <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold block">Vélemények moderációja és láthatósága:</span>
+                      <span>
+                        A beküldött vélemények alapértelmezetten <strong>jóváhagyásra várnak (függőben)</strong>. Csak azok jelennek meg a weboldal frontenden, amelyeket jóváhagysz, és amelyeknél a beküldő engedélyezte a nyilvános megjelenést. A kizárólag szervezőknek szóló privát visszajelzések soha nem kerülnek ki a látogatóknak.
+                      </span>
+                    </div>
                   </div>
 
-                  {reviews.map((r) => (
-                    <div key={r.id} className="bg-white rounded-xl border border-stone-200 p-4 shadow-2xs space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-amber-500">
-                          {[...Array(r.rating)].map((_, i) => (
-                            <Star key={i} className="w-4 h-4 fill-amber-400" />
-                          ))}
-                          <span className="font-mono font-bold text-xs text-stone-800 ml-1">
-                            {r.rating} / 5
-                          </span>
-                        </div>
-                        <span className="text-[11px] font-mono text-stone-400">{r.submittedAt}</span>
-                      </div>
-                      <p className="text-xs text-stone-800 leading-relaxed font-medium">
-                        "{r.feedbackText}"
-                      </p>
-                      {r.sellerFeedback && (
-                        <div className="p-2.5 bg-amber-50 rounded-lg text-xs text-amber-950 border border-amber-200">
-                          <strong className="block text-[11px] text-amber-900">Privát árus visszajelzés a szervezőknek:</strong>
-                          <span>"{r.sellerFeedback}"</span>
-                        </div>
-                      )}
+                  {reviews.length === 0 ? (
+                    <div className="p-10 text-center text-stone-500 text-xs bg-white rounded-xl border border-stone-200">
+                      Még nincs beérkezett vélemény.
                     </div>
-                  ))}
+                  ) : (
+                    reviews.map((r) => {
+                      const isApproved = r.status === 'approved';
+                      const isPending = !r.status || r.status === 'pending';
+                      const isPrivate = r.publicAllowed === false;
+
+                      return (
+                        <div key={r.id} className="bg-white rounded-xl border border-stone-200 p-4 shadow-2xs space-y-2.5">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-0.5 text-amber-500">
+                                {[...Array(r.rating)].map((_, i) => (
+                                  <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
+                                ))}
+                                <span className="font-mono font-bold text-xs text-stone-800 ml-1">
+                                  {r.rating} / 5
+                                </span>
+                              </div>
+
+                              {/* Status badges */}
+                              {isPending && (
+                                <span className="text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded">
+                                  🟡 Jóváhagyásra vár
+                                </span>
+                              )}
+                              {isApproved && (
+                                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 rounded">
+                                  🟢 Jóváhagyva
+                                </span>
+                              )}
+                              {r.status === 'rejected' && (
+                                <span className="text-[10px] font-bold bg-stone-200 text-stone-700 px-2 py-0.5 rounded">
+                                  ⚪ Elrejtve
+                                </span>
+                              )}
+
+                              {isPrivate ? (
+                                <span className="text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 px-2 py-0.5 rounded">
+                                  🔒 Csak belső szervezői észrevétel (nem publikus)
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-medium text-stone-500">
+                                  🌐 Nyilvános megjelenést kérő
+                                </span>
+                              )}
+                            </div>
+
+                            <span className="text-[11px] font-mono text-stone-400">{r.submittedAt}</span>
+                          </div>
+
+                          <div>
+                            <div className="text-xs font-bold text-stone-900 mb-1">
+                              Beküldő: {r.authorName || 'Anonim látogató'} · Hangulat: {r.atmosphereRating}/5 · Szervezés: {r.organizationRating}/5
+                            </div>
+                            <p className="text-xs text-stone-800 leading-relaxed font-medium bg-stone-50 p-2.5 rounded-lg border border-stone-200 italic">
+                              "{r.feedbackText}"
+                            </p>
+                          </div>
+
+                          {r.sellerFeedback && (
+                            <div className="p-2.5 bg-amber-50 rounded-lg text-xs text-amber-950 border border-amber-200">
+                              <strong className="block text-[11px] text-amber-900">Privát észrevétel konkrét árusról a szervezőknek:</strong>
+                              <span>"{r.sellerFeedback}"</span>
+                            </div>
+                          )}
+
+                          {/* Moderation Actions */}
+                          <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-xs">
+                            <div className="flex items-center gap-2">
+                              {!isApproved && !isPrivate && (
+                                <button
+                                  type="button"
+                                  onClick={() => onApproveReview(r.id)}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-lg cursor-pointer text-xs"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Jóváhagyás (Megjelenítés a weboldalon)</span>
+                                </button>
+                              )}
+                              {isApproved && (
+                                <button
+                                  type="button"
+                                  onClick={() => onRejectReview(r.id)}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-stone-200 hover:bg-stone-300 text-stone-800 font-semibold rounded-lg cursor-pointer text-xs"
+                                >
+                                  <EyeOff className="w-3.5 h-3.5" />
+                                  <span>Elrejtés a weboldalról</span>
+                                </button>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setConfirmDeleteTarget({
+                                  type: 'review',
+                                  id: r.id,
+                                  title: `Vélemény (${r.rating}★ · ${r.authorName || 'Anonim'})`,
+                                  details: `Szöveg: "${r.feedbackText}". A vélemény véglegesen törlődik az adatbázisból!`,
+                                })
+                              }
+                              className="text-red-700 hover:text-red-900 font-bold text-xs cursor-pointer flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Végleges törlés</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               )}
 
-              {/* TAB 7: SUPABASE & VERCEL */}
+              {/* TAB 7: SUPABASE & VERCEL INSTRUCTIONS */}
               {activeTab === 'supabase' && (
-                <div className="bg-white rounded-xl border border-stone-200 p-5 space-y-3 text-xs text-stone-700 leading-relaxed">
+                <div className="bg-white rounded-xl border border-stone-200 p-5 space-y-4 text-xs text-stone-700 leading-relaxed">
                   <div className="flex items-center gap-2 text-stone-900 font-bold text-sm font-serif">
                     <Database className="w-4 h-4 text-emerald-800" />
-                    <span>Vercel + Supabase telepítési és élesítési útmutató</span>
+                    <span>Hogyan működik most az adatbázis és mit kell módosítani a Vercel / Supabase-en?</span>
                   </div>
-                  <p>
-                    Az alkalmazás forráskódja Vercel kompatibilis és tartalmazza az összes szükséges komponenst:
-                  </p>
-                  <ol className="list-decimal pl-5 space-y-1">
-                    <li>
-                      <strong>GitHub repository feltöltés:</strong> A repó közvetlenül importálható a Vercel felületén (<a href="https://vercel.com" target="_blank" rel="noreferrer" className="underline font-bold text-emerald-800">vercel.com</a>).
-                    </li>
-                    <li>
-                      <strong>Supabase adatbázis:</strong> A projekt gyökerében elkészítettük a <code>supabase-schema.sql</code> fájlt, ami egyetlen kattintással lefuttatható a Supabase SQL szerkesztőjében.
-                    </li>
-                    <li>
-                      <strong>Környezeti változók a Vercel Dashboardon:</strong>
-                      <div className="bg-stone-900 text-amber-300 p-3 rounded-lg font-mono text-[11px] mt-1 space-y-1">
-                        <div>VITE_SUPABASE_URL="https://[YOUR-PROJECT].supabase.co"</div>
-                        <div>VITE_SUPABASE_ANON_KEY="[YOUR-ANON-KEY]"</div>
-                      </div>
-                    </li>
-                  </ol>
+
+                  <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl space-y-1.5 text-emerald-950">
+                    <strong className="block text-sm font-serif">1. Jelenleg azonnal és önállóan működik a weboldal:</strong>
+                    <p>
+                      Minden standfoglalás, lemondás, önkéntes regisztráció, céges jelentkezés és vélemény <strong>azonnal és megbízhatóan rögzítésre kerül a böngésző helyi adatbázisában (localStorage)</strong>. Ezzel egy időben a rendszer minden egyes foglalásról és jelentkezésről <strong>valós idejű e-mailes értesítést küld az ujbudazsibi@gmail.com címre</strong> a beépített értesítő hídon keresztül!
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <strong className="block text-stone-900 text-sm font-serif">
+                      2. Mikor és mit kell beállítanod a Supabase és Vercel felületen?
+                    </strong>
+                    <p>
+                      Csak akkor szükséges bármit módosítanod, ha azt szeretnéd, hogy több különböző számítógépről vagy telefonról belépve is valós időben ugyanaz a központi felhő adatbázis szinkronizálódjon.
+                    </p>
+                    <ol className="list-decimal pl-5 space-y-2 pt-1">
+                      <li>
+                        <strong>Supabase projekt létrehozása:</strong> Nyiss fiókot a <a href="https://supabase.com" target="_blank" rel="noreferrer" className="underline font-bold text-emerald-800">supabase.com</a> oldalon, és hozz létre egy új ingyenes projektet (pl. <em>ujbudazsibi</em>).
+                      </li>
+                      <li>
+                        <strong>Adatbázis táblák létrehozása:</strong> A projekt gyökérkönyvtárában található egy kész <code>supabase-schema.sql</code> fájl. A Supabase bal oldali menüjében kattints az <strong>SQL Editor</strong> gombra, illeszd be a fájl tartalmát, majd nyomd meg a <strong>RUN</strong> gombot. (Ez azonnal létrehozza az összes táblát: árusok, önkéntesek, partnerek, vélemények).
+                      </li>
+                      <li>
+                        <strong>Vercel környezeti változók hozzáadása:</strong> A Vercel Dashboardon nyisd meg a projektedet, lépj a <strong>Settings → Environment Variables</strong> fülre, és add hozzá ezt a két kulcsot (a Supabase <em>Project Settings → API</em> menüpontjából):
+                        <div className="bg-stone-900 text-amber-300 p-3 rounded-lg font-mono text-[11px] mt-1.5 space-y-1">
+                          <div>VITE_SUPABASE_URL = "https://[a-te-projekted].supabase.co"</div>
+                          <div>VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5..."</div>
+                        </div>
+                      </li>
+                      <li>
+                        <strong>Újratelepítés (Redeploy):</strong> A Vercel <em>Deployments</em> menüjében a legutóbbi verziónál kattints a <strong>Redeploy</strong> gombra. Ezzel az oldal automatikusan összekapcsolódik a felhő adatbázissal!
+                      </li>
+                    </ol>
+                  </div>
                 </div>
               )}
 
-              {/* TAB 7: SENT EMAILS / MAILBOX (ujbudazsibi@gmail.com) */}
+              {/* TAB 8: SENT EMAILS / MAILBOX */}
               {activeTab === 'emails' && (
                 <div className="space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-50/80 border border-amber-200 p-4 rounded-xl text-xs">
@@ -834,6 +1468,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 Központi admin e-mail: <strong>ujbudazsibi@gmail.com</strong>
               </span>
               <button
+                type="button"
                 onClick={onClose}
                 className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-lg cursor-pointer transition-colors"
               >
@@ -845,33 +1480,37 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
       </div>
 
-      {/* Confirmation Modal for Table Cancellation */}
-      {confirmCancelTarget && (
+      {/* Confirmation Modal for All Deletion Actions */}
+      {confirmDeleteTarget && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-white rounded-xl max-w-md w-full p-5 border border-red-200 shadow-2xl space-y-3">
             <div className="flex items-center gap-2 text-red-700 font-bold text-sm">
               <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
-              <span>Biztosan törlöd a standfoglalást?</span>
+              <span>Biztosan törlöd a következő tételt?</span>
             </div>
+            <p className="text-xs text-stone-800 font-bold">
+              {confirmDeleteTarget.title}
+            </p>
             <p className="text-xs text-stone-600 leading-relaxed">
-              Stand: <strong>#{confirmCancelTarget.tableId}</strong> ({confirmCancelTarget.locationName})<br />
-              Árus: <strong>{confirmCancelTarget.sellerName}</strong>
+              {confirmDeleteTarget.details}
             </p>
             <p className="text-xs text-emerald-900 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
-              A törléssel ez az asztal azonnal <strong>szabad státuszba kerül az utcaalaprajzon</strong>, és más látogató azonnal lefoglalhatja!
+              A módosítás azonnal érvénybe lép az adatbázisban és a felületen.
             </p>
             <div className="pt-2 flex justify-end gap-2 text-xs">
               <button
-                onClick={() => setConfirmCancelTarget(null)}
+                type="button"
+                onClick={() => setConfirmDeleteTarget(null)}
                 className="px-3 py-1.5 font-semibold text-stone-600 hover:text-stone-800 cursor-pointer"
               >
                 Mégse
               </button>
               <button
-                onClick={handleExecuteCancel}
+                type="button"
+                onClick={executeConfirmedDeletion}
                 className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg cursor-pointer transition-colors"
               >
-                Igen, törlöm és felszabadítom az asztalt
+                Igen, véglegesen törlöm
               </button>
             </div>
           </div>

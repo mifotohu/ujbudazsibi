@@ -156,20 +156,49 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       qrCodeData: `https://www.ujbudazsibi.hu/verify/${bookingCode}`,
     };
 
-    // Dispatch notification to ujbudazsibi@gmail.com and the seller
+    // Detailed front-end visible descriptions
+    const standFrontendText = `Stand #${table.id} (${table.side === 'north' ? 'Északi utcafront' : 'Déli utcafront'} · 250×100 cm asztalfelület és pakolótér)`;
+    const locationFrontendText = `${location.name} (${location.streetName}) — ${location.weekendDates} (${location.dateBadge})`;
+    const categoryNames = formData.categories
+      .map((cId) => CATEGORIES.find((c) => c.id === cId)?.label || cId)
+      .join(', ');
+    const priceFrontendText = `${finalPrice.toLocaleString('hu-HU')} Ft (${isLocalNeighborhood ? '10% Helyi kerületrészi lakossági kedvezménnyel' : 'XI. kerületi lakossági alapár'})`;
+
+    const readableSummary = `Stand száma & elhelyezkedése: ${standFrontendText}
+Helyszín: ${locationFrontendText}
+Árus neve: ${formData.fullName}
+E-mail cím: ${formData.email}
+Telefonszám: ${formData.phone}
+Újbudai lakcím: ${formData.postalCode} Budapest, ${formData.streetAddress}
+Kínált kategóriák: ${categoryNames}
+Árusított portékák leírása: ${formData.itemsDescription}
+Részvételi díj: ${priceFrontendText} — Online bankkártyával sikeresen kiegyenlítve
+Foglalási kód: ${bookingCode}
+Lemondási szabályzat: Vásár előtt legkésőbb 8 nappal mondható le díjmentesen az ujbudazsibi@gmail.com címen.`;
+
+    // Dispatch notification to ujbudazsibi@gmail.com and the applicant
     await sendEmailNotification({
       to: 'ujbudazsibi@gmail.com',
-      subject: `[Újbudazsibi] Új asztalfoglalás: Stand #${table.id} (${newBooking.sellerName})`,
+      subject: `[Újbudazsibi] Új asztalfoglalás: Stand #${table.id} — ${formData.fullName} (${location.name})`,
+      applicantName: formData.fullName,
+      applicantEmail: formData.email,
+      applicantPhone: formData.phone,
+      standText: standFrontendText,
+      locationText: locationFrontendText,
+      categoryText: categoryNames,
+      readableDetails: readableSummary,
       htmlContent: `
-        <h2>Újbudazsibi Asztalfoglalás Értesítés</h2>
-        <p><strong>Azonosító:</strong> ${newBooking.bookingId}</p>
-        <p><strong>Stand:</strong> #${newBooking.tableId} - ${newBooking.locationName}</p>
-        <p><strong>Dátum:</strong> ${newBooking.weekendDates}</p>
-        <p><strong>Árus neve:</strong> ${newBooking.sellerName}</p>
-        <p><strong>E-mail:</strong> ${newBooking.email} | <strong>Telefon:</strong> ${newBooking.phone}</p>
-        <p><strong>Lakcím:</strong> ${newBooking.postalCode} Budapest, ${newBooking.streetAddress}</p>
-        <p><strong>Fizetve:</strong> ${newBooking.totalPaid} Ft</p>
-        <p><strong>Portéka:</strong> ${newBooking.itemsDescription}</p>
+        <h2 style="color: #1a3626; font-family: serif;">Újbudazsibi Lakossági Standfoglalás Értesítés</h2>
+        <p><strong>Stand megnevezése:</strong> ${standFrontendText}</p>
+        <p><strong>Helyszín:</strong> ${locationFrontendText}</p>
+        <p><strong>Árus neve:</strong> ${formData.fullName}</p>
+        <p><strong>Elérhetőség:</strong> ${formData.email} | ${formData.phone}</p>
+        <p><strong>Újbudai lakcím:</strong> ${formData.postalCode} Budapest, ${formData.streetAddress}</p>
+        <p><strong>Kategóriák:</strong> ${categoryNames}</p>
+        <p><strong>Árusított cikkek:</strong> ${formData.itemsDescription}</p>
+        <p><strong>Befizetett összeg:</strong> ${priceFrontendText}</p>
+        <p><strong>Foglalási azonosító:</strong> ${bookingCode}</p>
+        <p style="color: #854d0e; font-size: 13px;"><em>Lemondási szabály: vásár előtt legkésőbb 8 nappal mondható le.</em></p>
       `,
     });
 

@@ -63,17 +63,39 @@ export const StreetMusicianModal: React.FC<StreetMusicianModalProps> = ({
       createdAt: new Date().toLocaleDateString('hu-HU'),
     };
 
+    const standFrontendText = `Utcazenész szőnyeg fellépés (Akusztikus zenei háttér a kávézó és grillsarok mellett, ${preferredTimeSlot})`;
+    const locationFrontendText = `${loc.name} (${loc.streetName}) — ${loc.weekendDates}`;
+
+    const readableSummary = `Fellépői pont: ${standFrontendText}
+Helyszín: ${locationFrontendText}
+Zenész / Formáció neve: ${musicianOrBandName}
+Kapcsolattartó: ${contactName}
+Elérhetőség: ${email} | ${phone}
+Műfaj és hangszerelés: ${genre} (${instruments || 'akusztikus hangszer'})
+Választott idősáv: ${preferredTimeSlot}
+Külön kérés / megjegyzés: ${note.trim() || 'Nincs külön megjegyzés'}
+Státusz: Fellépői jelentkezés rögzítve, műsorrendi egyeztetés folyamatban`;
+
     await sendEmailNotification({
       to: 'ujbudazsibi@gmail.com',
-      subject: `[Újbudazsibi Utcazenész] Jelentkezés: ${musicianOrBandName} (${genre})`,
+      subject: `[Újbudazsibi Utcazenész] Fellépői jelentkezés: ${musicianOrBandName} (${genre}) — ${loc.name}`,
+      applicantName: contactName,
+      applicantEmail: email,
+      applicantPhone: phone,
+      standText: standFrontendText,
+      locationText: locationFrontendText,
+      categoryText: `Utcazene: ${genre}`,
+      readableDetails: readableSummary,
       htmlContent: `
-        <h3>Új Utcazenész Jelentkezés</h3>
-        <p><strong>Zenész / Zenekar:</strong> ${musicianOrBandName}</p>
+        <h3 style="color: #1a3626; font-family: serif;">Új Utcazenész Fellépői Jelentkezés</h3>
+        <p><strong>Fellépő / Zenekar:</strong> ${musicianOrBandName}</p>
         <p><strong>Kapcsolattartó:</strong> ${contactName} (${phone}, ${email})</p>
+        <p><strong>Zenei pont:</strong> ${standFrontendText}</p>
+        <p><strong>Helyszín:</strong> ${locationFrontendText}</p>
         <p><strong>Műfaj:</strong> ${genre}</p>
         <p><strong>Hangszerek:</strong> ${instruments}</p>
-        <p><strong>Helyszín & Idősáv:</strong> ${loc.name} · ${preferredTimeSlot}</p>
-        <p><strong>Megjegyzés:</strong> ${note}</p>
+        <p><strong>Idősáv:</strong> ${preferredTimeSlot}</p>
+        <p><strong>Megjegyzés:</strong> ${note || 'Nincs'}</p>
       `,
     });
 

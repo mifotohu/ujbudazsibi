@@ -155,6 +155,9 @@ export interface MarketReview {
   organizationRating: number;
   feedbackText: string;
   sellerFeedback?: string; // specific private feedback about sellers for organizer
+  authorName?: string;
+  publicAllowed?: boolean; // oldalon megjelenhet? true: igen, false: csak belső szervezői visszajelzés
+  status?: 'pending' | 'approved' | 'rejected'; // jóváhagyási státusz adminisztrátornak
   submittedAt: string;
 }
 

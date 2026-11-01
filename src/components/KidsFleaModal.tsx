@@ -60,15 +60,36 @@ export const KidsFleaModal: React.FC<KidsFleaModalProps> = ({
 
     setErrorMsg('');
 
+    const standFrontendText = `${table.name} — Gyerekzsibi stand (150×100 cm díjmentes pléd/kisasztal a Családi zónában, szülői kísérettel)`;
+    const locationFrontendText = `${location.name} (${location.streetName}) — ${location.weekendDates}`;
+
+    const readableSummary = `Stand: ${standFrontendText}
+Helyszín: ${locationFrontendText}
+Kisárus neve: ${childName} (${childAge} éves)
+Szülő / Gondviselő: ${parentName}
+Elérhetőség: ${email} | ${phone}
+Árusított gyermekholmik (játékok, könyvek, kinőtt ruhák): ${itemsDescription}
+Részvételi hozzájárulás: Díjmentes (0 Ft) a XI. kerületi családoknak
+Lemondási határidő: Vásár előtt legkésőbb 8 nappal jelezhető díjmentesen az ujbudazsibi@gmail.com címen.`;
+
     await sendEmailNotification({
       to: 'ujbudazsibi@gmail.com',
-      subject: `[Újbudazsibi Gyerekzsibi] Új foglalás: ${table.name} (${childName} - ${parentName})`,
+      subject: `[Újbudazsibi Gyerekzsibi] Új díjmentes foglalás: ${table.name} — ${childName} (${location.name})`,
+      applicantName: parentName,
+      applicantEmail: email,
+      applicantPhone: phone,
+      standText: standFrontendText,
+      locationText: locationFrontendText,
+      categoryText: 'Gyermekjátékok, könyvek és mesekönyvek',
+      readableDetails: readableSummary,
       htmlContent: `
-        <h3>Új Gyerekzsibi Asztalfoglalás (Díjmentes)</h3>
-        <p><strong>Stand:</strong> ${table.name} - ${location.name}</p>
-        <p><strong>Gyermek:</strong> ${childName} (${childAge} éves)</p>
-        <p><strong>Szülő:</strong> ${parentName} (${phone}, ${email})</p>
+        <h3 style="color: #1a3626; font-family: serif;">Új Gyerekzsibi Standfoglalás (Díjmentes)</h3>
+        <p><strong>Stand megnevezése:</strong> ${standFrontendText}</p>
+        <p><strong>Helyszín:</strong> ${locationFrontendText}</p>
+        <p><strong>Gyermek árus:</strong> ${childName} (${childAge} éves)</p>
+        <p><strong>Szülő / Kísérő:</strong> ${parentName} (${phone}, ${email})</p>
         <p><strong>Árusított holmik:</strong> ${itemsDescription}</p>
+        <p><strong>Részvételi díj:</strong> 0 Ft (Díjmentes)</p>
       `,
     });
 

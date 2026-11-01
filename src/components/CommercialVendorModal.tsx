@@ -85,18 +85,41 @@ export const CommercialVendorModal: React.FC<CommercialVendorModalProps> = ({
       createdAt: new Date().toLocaleDateString('hu-HU'),
     };
 
-    // Send email notification to ujbudazsibi@gmail.com
+    const standFrontendText = isGrill
+      ? 'Grillsarok és street food kitelepülés (Gasztronómiai zóna, 35 000 Ft díj, áram- és területbiztosítással)'
+      : 'Gyereksarok vállalkozói koncesszió (Arcfestés, játszóház, kézműves műhely, 15 000 Ft díj)';
+    const locationFrontendText = `${loc.name} (${loc.streetName}) — ${loc.weekendDates}`;
+
+    const readableSummary = `Koncesszió típusa: ${standFrontendText}
+Helyszín: ${locationFrontendText}
+Cégnév: ${companyName} (Adószám: ${taxNumber})
+Számlázási cím: ${billingAddress}
+Felelős kapcsolattartó: ${contactPerson}
+Elérhetőség: ${email} | ${phone}
+Ajánlat / Program / Menü: ${programOrMenu}
+Részvételi hozzájárulás: ${suggestedFee.toLocaleString('hu-HU')} Ft
+Státusz: Vállalkozói regisztráció befogadva, szervezői jóváhagyásra vár`;
+
+    // Send email notification to ujbudazsibi@gmail.com and the vendor
     await sendEmailNotification({
       to: 'ujbudazsibi@gmail.com',
-      subject: `[Újbudazsibi Koncesszió] Új vállalkozói jelentkezés: ${companyName} (${isGrill ? 'Grill' : 'Gyereksarok'})`,
+      subject: `[Újbudazsibi Koncesszió] Új vállalkozói jelentkezés: ${companyName} — ${isGrill ? 'Grillsarok' : 'Gyereksarok'} (${loc.name})`,
+      applicantName: contactPerson,
+      applicantEmail: email,
+      applicantPhone: phone,
+      standText: standFrontendText,
+      locationText: locationFrontendText,
+      categoryText: isGrill ? 'Gasztronómia, Melegétel és Ital' : 'Gyermekprogramok és Kézművesség',
+      readableDetails: readableSummary,
       htmlContent: `
-        <h3>Új Vállalkozói Jelentkezés</h3>
+        <h3 style="color: #1a3626; font-family: serif;">Új Vállalkozói Koncessziós Jelentkezés</h3>
         <p><strong>Cégnév:</strong> ${companyName} (Adószám: ${taxNumber})</p>
         <p><strong>Számlázási cím:</strong> ${billingAddress}</p>
         <p><strong>Kapcsolattartó:</strong> ${contactPerson} (${phone}, ${email})</p>
-        <p><strong>Típus:</strong> ${isGrill ? 'Grillsarok & Gasztro' : 'Gyereksarok'}</p>
-        <p><strong>Helyszín:</strong> ${loc.name} (${loc.weekendDates})</p>
+        <p><strong>Kijelölt zóna:</strong> ${standFrontendText}</p>
+        <p><strong>Helyszín:</strong> ${locationFrontendText}</p>
         <p><strong>Ajánlat / Kínálat:</strong> ${programOrMenu}</p>
+        <p><strong>Hozzájárulási díj:</strong> ${suggestedFee.toLocaleString('hu-HU')} Ft</p>
       `,
     });
 

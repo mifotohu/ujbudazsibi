@@ -39,17 +39,64 @@ export function saveSentEmail(record: SentEmailRecord) {
   }
 }
 
-export async function sendEmailNotification(payload: {
-  to: string;
+export interface EmailNotificationPayload {
+  to?: string;
   subject: string;
   htmlContent: string;
+  applicantName?: string;
+  applicantEmail?: string;
+  applicantPhone?: string;
+  locationText?: string;
+  standText?: string;
+  categoryText?: string;
+  readableDetails?: string;
   senderName?: string;
-}): Promise<{ success: boolean; message: string }> {
+}
+
+export async function sendEmailNotification(
+  payload: EmailNotificationPayload
+): Promise<{ success: boolean; message: string }> {
   const plainText = payload.htmlContent
     .replace(/<[^>]+>/g, '\n')
     .replace(/&nbsp;/g, ' ')
     .replace(/\n\s*\n/g, '\n')
     .trim();
+
+  const recipientTo = payload.to || ORGANIZER_EMAIL;
+  const applicantEmail = payload.applicantEmail?.trim() || '';
+  const applicantName = payload.applicantName?.trim() || 'Jelentkező';
+  const standOrRoleText = payload.standText || 'Közösségi jelentkezés';
+  const locationText = payload.locationText || 'Újbudazsibi Helyszín';
+  const readableSummary = payload.readableDetails || plainText;
+
+  // 100% Hungarian, warm and professional automated confirmation email for the applicant
+  const hungarianAutoResponse = `Kedves ${applicantName}!
+
+Köszönjük szépen a jelentkezésedet az Újbudazsibi közösségi zsibvásárra!
+A regisztrációd és választásod sikeresen rögzítésre került a szervezői rendszerben.
+
+AZ ÁLTALAD KIVÁLASZTOTT RÉSZLETEK (A WEBOLDALON MEGJELENT ADATOK ALAPJÁN):
+======================================================================
+• Esemény / Helyszín: ${locationText}
+• Kiválasztott hely / Szerepkör: ${standOrRoleText}
+${payload.categoryText ? `• Kínálati kategóriák: ${payload.categoryText}\n` : ''}
+RÉSZLETES JELENTKEZÉSI ADATOK:
+----------------------------------------------------------------------
+${readableSummary}
+
+FONTOS SZERVEZŐI TUDNIVALÓK:
+• Helyszínre érkezés: A vásár napján reggel 07:00 és 08:30 között várjuk az eladókat a helyszínen a standok elfoglalásához.
+• Lemondási szabályzat: A vásár napja előtt legkésőbb 8 nappal mondható le díjmentesen az ujbudazsibi@gmail.com e-mail címen. 8 napon belül a stand már nem lemondható.
+• Parkolás és kipakolás: A lezárt utcaszakasz bejáratainál az önkéntes segítők fogadják a résztvevőket és mutatják meg a kijelölt asztalt.
+
+Amennyiben bármilyen kérdésed vagy észrevételed van, fordulj hozzánk bizalommal az ujbudazsibi@gmail.com címen.
+
+Találkozunk az Újbudazsibin!
+
+Baráti üdvözlettel:
+Az Újbudazsibi Szervezőcsapata
+E-mail: ujbudazsibi@gmail.com
+Web: https://www.ujbudazsibi.hu`;
 
   let delivered = false;
 
@@ -63,11 +110,18 @@ export async function sendEmailNotification(payload: {
       },
       body: JSON.stringify({
         _subject: payload.subject,
-        cimzett: payload.to,
-        ertesites_targy: payload.subject,
-        uzenet_szoveg: plainText,
-        _template: 'table',
+        _replyto: applicantEmail || ORGANIZER_EMAIL,
+        _autoresponse: hungarianAutoResponse,
+        _template: 'box',
         _captcha: 'false',
+        'Jelentkezés tárgya': payload.subject,
+        'Helyszín és időpont': locationText,
+        'Választott stand vagy szerepkör': standOrRoleText,
+        'Jelentkező teljes neve': applicantName,
+        'Jelentkező e-mail címe': applicantEmail || 'Nem adott meg e-mail címet',
+        'Jelentkező telefonszáma': payload.applicantPhone || 'Nem adott meg telefonszámot',
+        'Kínálat és kategóriák': payload.categoryText || 'Nincs külön kategória',
+        'Jelentkezés szöveges részletei': readableSummary,
       }),
     });
 
@@ -83,7 +137,10 @@ export async function sendEmailNotification(payload: {
     const apiRes = await fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        autoResponse: hungarianAutoResponse,
+      }),
     });
     if (apiRes.ok) {
       delivered = true;
@@ -95,9 +152,19 @@ export async function sendEmailNotification(payload: {
   // 3. Always log in persistent local mailbox for organizer review
   const record: SentEmailRecord = {
     id: `mail-${Date.now().toString().slice(-6)}`,
-    to: payload.to,
+    to: applicantEmail ? `${ORGANIZER_EMAIL} + ${applicantEmail}` : recipientTo,
     subject: payload.subject,
-    htmlContent: payload.htmlContent,
+    htmlContent: `
+      <div style="font-family: sans-serif; line-height: 1.5; color: #1c1917;">
+        ${payload.htmlContent}
+        <div style="margin-top: 20px; padding: 14px; background: #f5f5f4; border-radius: 8px; border: 1px solid #d6d3d1;">
+          <strong style="color: #166534; display: block; margin-bottom: 6px;">
+            ✉️ A jelentkezőnek kiküldött magyar nyelvű visszaigazoló levél szövege:
+          </strong>
+          <pre style="white-space: pre-wrap; font-family: inherit; font-size: 13px; color: #44403c; margin: 0;">${hungarianAutoResponse}</pre>
+        </div>
+      </div>
+    `,
     sentAt: new Date().toLocaleString('hu-HU', {
       year: 'numeric',
       month: '2-digit',
@@ -111,10 +178,10 @@ export async function sendEmailNotification(payload: {
 
   saveSentEmail(record);
 
-  console.log(`[Újbudazsibi Postafiók] Értesítés elküldve (${payload.to}): ${payload.subject}`);
+  console.log(`[Újbudazsibi Postafiók] Értesítés elküldve (${applicantEmail || recipientTo}): ${payload.subject}`);
 
   return {
     success: true,
-    message: `Az értesítés elküldve a szervezőknek (${ORGANIZER_EMAIL}) és rögzítve a postafiókban.`,
+    message: `A magyar nyelvű visszaigazolás és a szervezői értesítés sikeresen elküldve (${ORGANIZER_EMAIL}).`,
   };
 }
