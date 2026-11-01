@@ -454,7 +454,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-stone-900 flex flex-col font-sans selection:bg-[#E8D4B8]">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#FAF7F2] text-stone-900 flex flex-col font-sans selection:bg-[#E8D4B8]">
       
       {/* TOAST NOTIFICATION POPUP */}
       {toastMessage && (

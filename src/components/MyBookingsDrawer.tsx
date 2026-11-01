@@ -13,6 +13,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
+import { QrCodeDisplay } from './QrCodeDisplay';
+
 interface MyBookingsDrawerProps {
   isOpen: boolean;
   bookings: ConfirmedBooking[];
@@ -77,21 +79,27 @@ export const MyBookingsDrawer: React.FC<MyBookingsDrawerProps> = ({
                 key={b.bookingId}
                 className="border-2 border-emerald-800 rounded-2xl p-4 bg-white space-y-3 shadow-2xs relative"
               >
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
                       Érvényes árusi engedély
                     </span>
                     <h4 className="text-xl font-black text-stone-900">
                       STAND #{b.tableId}
                     </h4>
-                    <p className="text-xs font-semibold text-stone-700 mt-0.5">
+                    <p className="text-xs font-semibold text-stone-700 mt-0.5 truncate">
                       {b.locationName}
                     </p>
                   </div>
-                  <div className="bg-[#FAF7F2] p-1.5 rounded-lg border border-stone-200 flex flex-col items-center">
-                    <QrCode className="w-12 h-12 text-stone-900" />
-                    <span className="text-[9px] font-mono font-bold text-stone-500 mt-0.5">
+                  <div className="bg-[#FAF7F2] p-1.5 rounded-xl border border-stone-200 flex flex-col items-center shrink-0">
+                    <QrCodeDisplay
+                      bookingId={b.bookingId}
+                      tableId={b.tableId}
+                      sellerName={b.sellerName}
+                      locationName={b.locationName}
+                      size={72}
+                    />
+                    <span className="text-[9px] font-mono font-bold text-stone-600 mt-1">
                       {b.bookingId}
                     </span>
                   </div>

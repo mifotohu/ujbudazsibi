@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import { TableData, LocationData, BookingFormState, ConfirmedBooking } from '../types/market';
 import { CATEGORIES } from '../data/mockData';
 import { sendEmailNotification } from '../lib/supabase';
+import { QrCodeDisplay } from './QrCodeDisplay';
 import {
   X,
   CreditCard,
@@ -696,18 +697,13 @@ Hitelesítés: https://www.ujbudazsibi.hu/verify/${confirmedData.bookingId}`;
 
                 {/* Genuine Scannable QR Code */}
                 <div className="bg-[#FAF7F2] p-2 rounded-xl border border-stone-300 flex flex-col items-center shrink-0 shadow-2xs">
-                  {qrCodeDataUrl ? (
-                    <img
-                      src={qrCodeDataUrl}
-                      alt={`Hivatalos QR igazolás #${confirmedData.bookingId}`}
-                      className="w-24 h-24 sm:w-28 sm:h-28 object-contain rounded bg-white p-0.5"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 sm:w-28 sm:h-28 flex flex-col items-center justify-center bg-stone-100 rounded text-stone-400">
-                      <QrCode className="w-8 h-8 animate-pulse text-[#1A3626]" />
-                      <span className="text-[9px] mt-1 font-mono">QR kód...</span>
-                    </div>
-                  )}
+                  <QrCodeDisplay
+                    bookingId={confirmedData.bookingId}
+                    tableId={confirmedData.tableId}
+                    sellerName={confirmedData.sellerName}
+                    locationName={confirmedData.locationName}
+                    size={100}
+                  />
                   <span className="text-[10px] font-mono font-bold text-stone-800 mt-1 tracking-tight">
                     {confirmedData.bookingId}
                   </span>

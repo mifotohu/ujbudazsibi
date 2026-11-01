@@ -650,144 +650,148 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               </div>
             </div>
 
-            {/* TAB BAR (Horizontally scrollable with clear badges) */}
-            <div className="bg-[#FAF8F5] px-5 sm:px-6 py-2.5 border-b border-stone-200 overflow-x-auto no-scrollbar">
-              <div className="flex items-center gap-1.5 min-w-max">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('sellers')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                    activeTab === 'sellers'
-                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
-                      : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
-                  }`}
-                >
-                  Árusok ({allBookings.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('commercial')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                    activeTab === 'commercial'
-                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
-                      : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
-                  }`}
-                >
-                  Céges partnerek ({commercialVendors.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('kids_flea')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                    activeTab === 'kids_flea'
-                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
-                      : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
-                  }`}
-                >
-                  Gyerekzsibi
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('musicians')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                    activeTab === 'musicians'
-                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
-                      : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
-                  }`}
-                >
-                  Zenészek ({musicians.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('volunteers')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                    activeTab === 'volunteers'
-                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
-                      : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
-                  }`}
-                >
-                  Önkéntesek ({volunteers.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('reviews')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                    activeTab === 'reviews'
-                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
-                      : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
-                  }`}
-                >
-                  Vélemények ({reviews.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('emails')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
-                    activeTab === 'emails'
-                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
-                      : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
-                  }`}
-                >
-                  <Mail className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Postafiók ({getSentEmails().length})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('supabase')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                    activeTab === 'supabase'
-                      ? 'bg-stone-900 text-amber-300 shadow-xs font-bold'
-                      : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100'
-                  }`}
-                >
-                  Vercel & Supabase
-                </button>
-              </div>
+            {/* TÁBLÁZAT ÉS KATEGÓRIA SÁV (Tiszta, reszponzív fülsáv görgetősáv és dobozolás nélkül) */}
+            <div className="bg-[#EFE8DA] px-4 sm:px-6 py-3 border-b border-stone-300/90 flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('sellers')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  activeTab === 'sellers'
+                    ? 'bg-[#1A3626] text-[#E7C286] shadow-xs font-bold border border-[#1A3626]'
+                    : 'bg-[#FAF7F2] border border-stone-300 text-stone-700 hover:bg-white hover:text-stone-900 shadow-2xs'
+                }`}
+              >
+                Árusok ({allBookings.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('commercial')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  activeTab === 'commercial'
+                    ? 'bg-[#1A3626] text-[#E7C286] shadow-xs font-bold border border-[#1A3626]'
+                    : 'bg-[#FAF7F2] border border-stone-300 text-stone-700 hover:bg-white hover:text-stone-900 shadow-2xs'
+                }`}
+              >
+                Céges partnerek ({commercialVendors.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('kids_flea')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  activeTab === 'kids_flea'
+                    ? 'bg-[#1A3626] text-[#E7C286] shadow-xs font-bold border border-[#1A3626]'
+                    : 'bg-[#FAF7F2] border border-stone-300 text-stone-700 hover:bg-white hover:text-stone-900 shadow-2xs'
+                }`}
+              >
+                Gyerekzsibi
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('musicians')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  activeTab === 'musicians'
+                    ? 'bg-[#1A3626] text-[#E7C286] shadow-xs font-bold border border-[#1A3626]'
+                    : 'bg-[#FAF7F2] border border-stone-300 text-stone-700 hover:bg-white hover:text-stone-900 shadow-2xs'
+                }`}
+              >
+                Zenészek ({musicians.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('volunteers')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  activeTab === 'volunteers'
+                    ? 'bg-[#1A3626] text-[#E7C286] shadow-xs font-bold border border-[#1A3626]'
+                    : 'bg-[#FAF7F2] border border-stone-300 text-stone-700 hover:bg-white hover:text-stone-900 shadow-2xs'
+                }`}
+              >
+                Önkéntesek ({volunteers.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('reviews')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  activeTab === 'reviews'
+                    ? 'bg-[#1A3626] text-[#E7C286] shadow-xs font-bold border border-[#1A3626]'
+                    : 'bg-[#FAF7F2] border border-stone-300 text-stone-700 hover:bg-white hover:text-stone-900 shadow-2xs'
+                }`}
+              >
+                Vélemények ({reviews.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('emails')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'emails'
+                    ? 'bg-[#1A3626] text-[#E7C286] shadow-xs font-bold border border-[#1A3626]'
+                    : 'bg-[#FAF7F2] border border-stone-300 text-stone-700 hover:bg-white hover:text-stone-900 shadow-2xs'
+                }`}
+              >
+                <Mail className="w-3.5 h-3.5 text-amber-600" />
+                <span>Postafiók ({getSentEmails().length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('supabase')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  activeTab === 'supabase'
+                    ? 'bg-[#1A3626] text-[#E7C286] shadow-xs font-bold border border-[#1A3626]'
+                    : 'bg-[#FAF7F2] border border-stone-300 text-stone-700 hover:bg-white hover:text-stone-900 shadow-2xs'
+                }`}
+              >
+                Vercel & Supabase
+              </button>
             </div>
 
-            {/* ACTION & FILTER TOOLBAR (Fully responsive, stacked on mobile with full-width search) */}
-            <div className="bg-[#F6F2EB] px-4 sm:px-6 py-3 border-b border-stone-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 text-xs">
-              <div className="w-full sm:w-auto">
+            {/* KÜLÖN SZŰRŐ ÉS EXPORTÁLÓ SÁV (Önálló, tágas, reszponzív kezelősáv) */}
+            <div className="bg-[#FAF6EE] px-4 sm:px-6 py-3.5 border-b border-stone-300 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs">
+              <div className="w-full md:w-auto shrink-0">
                 <button
                   type="button"
                   onClick={handleExportToGoogleSheets}
-                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 rounded-xl text-xs font-bold bg-[#1A3626] hover:bg-[#254d37] text-[#E7C286] border border-[#C88A36]/40 shadow-xs transition-colors cursor-pointer whitespace-nowrap font-serif"
-                  title="Összes jelentkező exportálása Google Táblázatba (.xlsx külön fülekkel)"
+                  className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#1A3626] hover:bg-[#254d37] text-[#E7C286] border border-[#C88A36]/50 shadow-xs transition-colors cursor-pointer whitespace-nowrap font-serif"
+                  title="Összes jelentkező exportálása Google Táblázatba (.xlsx formátum, külön fülekkel)"
                 >
                   <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>Google Sheets export (.xlsx 7 füllel)</span>
                 </button>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto flex-1 justify-end">
-                <select
-                  value={selectedLocationFilter}
-                  onChange={(e) => setSelectedLocationFilter(e.target.value)}
-                  className="w-full sm:w-48 px-3 py-2 sm:py-1.5 text-xs rounded-xl border border-stone-300 bg-white text-stone-800 font-medium focus:ring-1 focus:ring-emerald-700 shadow-2xs"
-                >
-                  <option value="all">Minden helyszín</option>
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.id}>
-                      {loc.name}
-                    </option>
-                  ))}
-                </select>
+              {/* Helyszín szűrő és Keresőmező külön jól látható egységként */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto flex-1 md:justify-end">
+                <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                  <span className="text-[11px] font-bold text-stone-600 hidden sm:inline whitespace-nowrap">
+                    Szűrés:
+                  </span>
+                  <select
+                    value={selectedLocationFilter}
+                    onChange={(e) => setSelectedLocationFilter(e.target.value)}
+                    className="w-full sm:w-48 px-3 py-2 text-xs rounded-xl border border-stone-300 bg-white text-stone-800 font-semibold focus:ring-2 focus:ring-emerald-700 focus:outline-none shadow-2xs"
+                  >
+                    <option value="all">Minden helyszín (Összes)</option>
+                    {locations.map((loc) => (
+                      <option key={loc.id} value={loc.id}>
+                        {loc.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                <div className="relative w-full sm:w-60">
+                <div className="relative w-full sm:w-64">
                   <input
                     type="text"
                     placeholder="Keresés név, stand, cím..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 sm:py-1.5 text-xs rounded-xl border border-stone-300 bg-white text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-emerald-700 shadow-2xs"
+                    className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-stone-300 bg-white text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-700 shadow-2xs"
                   />
                   <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-2.5" />
                 </div>
               </div>
             </div>
 
-            {/* Content Body */}
-            <div className="p-5 sm:p-6 flex-1 overflow-y-auto space-y-4">
+            {/* Tartalom törzse - Tágas térközzel lejjebb tolva */}
+            <div className="p-5 sm:p-7 flex-1 overflow-y-auto space-y-5 bg-[#FAF8F5]">
               
               {/* Google Sheets export feedback banner */}
               {exportFeedback && (
