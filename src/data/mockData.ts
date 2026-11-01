@@ -61,6 +61,13 @@ export const CATEGORIES: CategoryItem[] = [
     badgeColor: 'text-cyan-800 bg-cyan-50 border-cyan-300',
     description: 'Fényképezőgépek, rádiók, walkmanek, mechanikus eszközök, szerszámok',
   },
+  {
+    id: 'sports_outdoor',
+    label: 'Sport, szabadidő és bringa',
+    iconName: 'Bike',
+    badgeColor: 'text-teal-800 bg-teal-50 border-teal-300',
+    description: 'Kerékpárok, rollerek, görkorik, túrafelszerelés, labdák, szabadtéri játékok',
+  },
 ];
 
 // Unified volunteer tasks without barrier setup or heavy porter tasks

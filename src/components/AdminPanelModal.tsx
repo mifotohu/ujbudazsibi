@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import {
   LocationData,
@@ -46,6 +46,8 @@ import {
   EyeOff,
   Check,
   RefreshCw,
+  Bell,
+  Megaphone,
 } from 'lucide-react';
 
 interface AdminPanelModalProps {
@@ -55,6 +57,9 @@ interface AdminPanelModalProps {
   commercialVendors: CommercialVendorBooking[];
   musicians: StreetMusicianApplication[];
   reviews: MarketReview[];
+  siteNotification?: string;
+  onSaveNotification?: (text: string) => void;
+  onDeleteNotification?: () => void;
   onClose: () => void;
   onCancelBooking: (locationId: string, tableId: number, sellerName: string) => void;
   onCancelKidsTable: (locationId: string, tableId: string) => void;
@@ -75,6 +80,9 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   commercialVendors,
   musicians,
   reviews,
+  siteNotification = '',
+  onSaveNotification,
+  onDeleteNotification,
   onClose,
   onCancelBooking,
   onCancelKidsTable,
@@ -92,10 +100,15 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const [passwordError, setPasswordError] = useState('');
 
   const [activeTab, setActiveTab] = useState<
-    'sellers' | 'commercial' | 'kids_flea' | 'musicians' | 'volunteers' | 'reviews' | 'emails' | 'supabase'
+    'sellers' | 'commercial' | 'kids_flea' | 'musicians' | 'volunteers' | 'reviews' | 'emails' | 'supabase' | 'notification'
   >('sellers');
   const [selectedLocationFilter, setSelectedLocationFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [notificationDraft, setNotificationDraft] = useState(siteNotification);
+
+  useEffect(() => {
+    setNotificationDraft(siteNotification);
+  }, [siteNotification]);
 
   // Target for generic deletion confirmations
   const [confirmDeleteTarget, setConfirmDeleteTarget] = useState<{
@@ -740,6 +753,18 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 }`}
               >
                 Vercel & Supabase
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('notification')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'notification'
+                    ? 'bg-[#1A3626] text-[#E7C286] shadow-xs font-bold border border-[#1A3626]'
+                    : 'bg-[#FAF7F2] border border-stone-300 text-stone-700 hover:bg-white hover:text-stone-900 shadow-2xs'
+                }`}
+              >
+                <Bell className="w-3.5 h-3.5 text-amber-600" />
+                <span>Hírsáv / Értesítés {siteNotification && siteNotification.trim() ? '(Aktív)' : ''}</span>
               </button>
             </div>
 
@@ -1462,6 +1487,172 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* NOTIFICATION TAB (Felső hírsáv kezelése, max 200 karakter) */}
+              {activeTab === 'notification' && (
+                <div className="space-y-6 max-w-3xl">
+                  <div className="bg-white p-5 sm:p-7 rounded-2xl border border-stone-300 shadow-2xs space-y-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-stone-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#1A3626] text-[#E7C286] flex items-center justify-center shrink-0 shadow-2xs">
+                          <Bell className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-extrabold text-stone-900 font-serif">
+                            Weboldal felső értesítési sáv (Max. 200 karakter)
+                          </h4>
+                          <p className="text-xs text-stone-600 mt-0.5">
+                            Itt adhatsz meg a weboldal tetején megjelenő kiemelt hirdetményt vagy figyelmeztetést.
+                          </p>
+                        </div>
+                      </div>
+                      <div>
+                        {siteNotification && siteNotification.trim() ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                            <span>Jelenleg aktív a weboldalon</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-stone-100 text-stone-600 border border-stone-300">
+                            <span>Jelenleg nincs aktív hirdetmény</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Live Preview */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <label className="font-bold text-stone-800">
+                          Élő előnézet (így látják a látogatók a www.ujbudazsibi.hu-n):
+                        </label>
+                        <span className="text-[11px] text-stone-500">
+                          {notificationDraft.trim() ? 'Megjelenik a weboldalon' : 'Rejtve marad (nincs üres doboz)'}
+                        </span>
+                      </div>
+
+                      {notificationDraft.trim() ? (
+                        <div className="bg-[#1A3626] text-[#FAF7F2] rounded-xl border border-[#C88A36]/60 p-3 sm:p-4 flex items-center justify-between gap-3 shadow-xs">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="p-1.5 rounded-lg bg-[#C88A36] text-[#14261B] shrink-0 font-bold shadow-2xs">
+                              <Bell className="w-4 h-4" />
+                            </span>
+                            <p className="text-xs sm:text-sm font-medium text-[#FAF7F2] leading-snug">
+                              {notificationDraft}
+                            </p>
+                          </div>
+                          <span className="text-[10px] text-[#E7C286] font-mono shrink-0 font-semibold uppercase tracking-wider bg-black/20 px-2 py-0.5 rounded">
+                            Élő doboz
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="bg-[#FAF8F5] border border-dashed border-stone-300 rounded-xl p-4 text-center text-xs text-stone-500">
+                          <p className="italic">
+                            Jelenleg nincs megadva értesítés szöveg. A weboldal tetején nem látszik semmilyen üres sáv vagy doboz.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Input editor with max 200 char enforcement */}
+                    <div className="space-y-2 pt-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <label className="font-bold text-stone-900">
+                          Értesítés szövege (maximum 200 karakterig) *
+                        </label>
+                        <span
+                          className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${
+                            notificationDraft.length >= 200
+                              ? 'bg-red-100 text-red-700'
+                              : notificationDraft.length > 170
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-stone-100 text-stone-600'
+                          }`}
+                        >
+                          {notificationDraft.length} / 200 karakter
+                        </span>
+                      </div>
+
+                      <textarea
+                        rows={3}
+                        maxLength={200}
+                        value={notificationDraft}
+                        onChange={(e) => setNotificationDraft(e.target.value.slice(0, 200))}
+                        placeholder="Írd ide a legfontosabb információt (pl. szabad asztalok száma, időjárás infó, lemondási határidő)..."
+                        className="w-full px-4 py-3 text-xs sm:text-sm rounded-xl border border-stone-300 bg-[#FAF8F5] focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700 text-stone-900 resize-none font-sans shadow-2xs leading-relaxed"
+                      />
+                    </div>
+
+                    {/* Quick suggestion templates */}
+                    <div className="space-y-2 pt-1">
+                      <span className="text-[11px] font-bold text-stone-500 block">
+                        Javasolt sablonok egy kattintással:
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNotificationDraft(
+                              '📢 Figyelem: A tavaszi vásárokra már csak néhány szabad asztal maradt! Foglalj időben a fenti térképen!'
+                            )
+                          }
+                          className="text-[11px] px-3 py-1.5 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded-lg text-stone-700 transition-colors text-left cursor-pointer"
+                        >
+                          Fogyó asztalok felhívás
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNotificationDraft(
+                              '☀️ Időjárás tájékoztató: Hétvégén napos, kellemes tavaszi idő várható, a vásár zavartalanul megrendezésre kerül!'
+                            )
+                          }
+                          className="text-[11px] px-3 py-1.5 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded-lg text-stone-700 transition-colors text-left cursor-pointer"
+                        >
+                          Kedvező időjárás infó
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNotificationDraft(
+                              '⚠️ Fontos emlékeztető: Standlemondás díjmentesen legkésőbb a vásár előtt 8 nappal lehetséges az ujbudazsibi@gmail.com címen!'
+                            )
+                          }
+                          className="text-[11px] px-3 py-1.5 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded-lg text-stone-700 transition-colors text-left cursor-pointer"
+                        >
+                          8 napos lemondási szabály
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Actions: Save & Delete */}
+                    <div className="pt-4 border-t border-stone-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNotificationDraft('');
+                          onDeleteNotification?.();
+                        }}
+                        className="px-4 py-2.5 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-300 rounded-xl transition-colors cursor-pointer text-center"
+                      >
+                        Értesítés törlése (sáv elrejtése a weboldalról)
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onSaveNotification?.(notificationDraft.trim());
+                        }}
+                        className="px-6 py-2.5 text-xs font-bold bg-[#1A3626] hover:bg-[#254d37] text-[#E7C286] border border-[#C88A36]/50 rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 font-serif"
+                      >
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span>Mentés és közzététel a weboldalon</span>
+                      </button>
+                    </div>
+
+                  </div>
                 </div>
               )}
 

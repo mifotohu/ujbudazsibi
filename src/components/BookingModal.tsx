@@ -4,6 +4,7 @@ import { TableData, LocationData, BookingFormState, ConfirmedBooking } from '../
 import { CATEGORIES } from '../data/mockData';
 import { sendEmailNotification } from '../lib/supabase';
 import { QrCodeDisplay } from './QrCodeDisplay';
+import { printPassElement } from '../utils/printPass';
 import {
   X,
   CreditCard,
@@ -242,7 +243,7 @@ Hitelesítés: https://www.ujbudazsibi.hu/verify/${confirmedData.bookingId}`;
   }, [step, confirmedData]);
 
   const handlePrint = () => {
-    window.print();
+    printPassElement('printable-pass');
   };
 
   return (
@@ -666,9 +667,6 @@ Hitelesítés: https://www.ujbudazsibi.hu/verify/${confirmedData.bookingId}`;
               <h3 className="text-lg font-black text-stone-900 font-serif">
                 Sikeres asztalfoglalás és fizetés!
               </h3>
-              <p className="text-xs text-stone-600 mt-0.5">
-                Visszaigazolás elküldve: <strong>{confirmedData.email}</strong> és <strong>ujbudazsibi@gmail.com</strong>
-              </p>
             </div>
 
             {/* Official Pass - Printable 1-page A4 Pass */}

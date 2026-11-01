@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { QrCodeDisplay } from './QrCodeDisplay';
+import { printPassElement } from '../utils/printPass';
 
 interface MyBookingsDrawerProps {
   isOpen: boolean;
@@ -77,6 +78,7 @@ export const MyBookingsDrawer: React.FC<MyBookingsDrawerProps> = ({
             bookings.map((b) => (
               <div
                 key={b.bookingId}
+                id={`my-pass-${b.bookingId}`}
                 className="border-2 border-emerald-800 rounded-2xl p-4 bg-white space-y-3 shadow-2xs relative"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -130,11 +132,12 @@ export const MyBookingsDrawer: React.FC<MyBookingsDrawerProps> = ({
                 </div>
 
                 <button
-                  onClick={() => window.print()}
-                  className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-[#FAF7F2] border border-stone-300 rounded-lg text-xs font-semibold text-stone-800 hover:bg-stone-200 transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => printPassElement(`my-pass-${b.bookingId}`)}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 bg-[#FAF7F2] border border-stone-300 rounded-lg text-xs font-semibold text-stone-800 hover:bg-stone-200 transition-colors cursor-pointer"
                 >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Jegy kinyomtatása / PDF mentés</span>
+                  <Printer className="w-3.5 h-3.5 text-emerald-800" />
+                  <span>Jegy kinyomtatása / PDF mentés (1 oldal)</span>
                 </button>
               </div>
             ))

@@ -58,6 +58,8 @@ import {
   Smile,
   MessageSquare,
   Lock,
+  Bell,
+  X,
 } from 'lucide-react';
 
 export default function App() {
@@ -131,6 +133,10 @@ export default function App() {
       }
     }
     return [];
+  });
+
+  const [siteNotification, setSiteNotification] = useState<string>(() => {
+    return localStorage.getItem('ujbuda_site_notification_v1') || '';
   });
 
   const [selectedLocationId, setSelectedLocationId] = useState<string>('bartok');
@@ -453,6 +459,24 @@ export default function App() {
     }
   };
 
+  const handleSaveSiteNotification = (text: string) => {
+    const cleanText = text.slice(0, 200).trim();
+    setSiteNotification(cleanText);
+    if (cleanText) {
+      localStorage.setItem('ujbuda_site_notification_v1', cleanText);
+      showToast('Értesítés közzétéve a weboldal tetején!');
+    } else {
+      localStorage.removeItem('ujbuda_site_notification_v1');
+      showToast('Értesítés törölve, a sáv eltűnt a weboldalról.');
+    }
+  };
+
+  const handleDeleteSiteNotification = () => {
+    setSiteNotification('');
+    localStorage.removeItem('ujbuda_site_notification_v1');
+    showToast('Értesítés törölve, a sáv eltűnt a weboldalról.');
+  };
+
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#FAF7F2] text-stone-900 flex flex-col font-sans selection:bg-[#E8D4B8]">
       
@@ -462,6 +486,34 @@ export default function App() {
           <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
           <p className="text-xs leading-relaxed text-stone-200">{toastMessage}</p>
         </div>
+      )}
+
+      {/* 0. DEDICATED TOP SITE NOTIFICATION BOX (Max 200 chars - Only rendered if not empty) */}
+      {siteNotification && siteNotification.trim().length > 0 && (
+        <aside
+          role="alert"
+          aria-live="polite"
+          className="bg-[#1A3626] text-[#FAF7F2] border-b border-[#C88A36]/50 px-3.5 sm:px-6 py-2.5 relative z-50 shadow-xs animate-in fade-in slide-in-from-top-2 duration-300"
+        >
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs sm:text-sm">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <span className="p-1 sm:p-1.5 rounded-lg bg-[#C88A36] text-[#14261B] shrink-0 font-bold shadow-2xs">
+                <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </span>
+              <p className="font-medium text-[#FAF7F2] leading-snug break-words">
+                {siteNotification}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSiteNotification('')}
+              className="text-stone-300 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
+              title="Értesítés elrejtése"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </aside>
       )}
 
       {/* 1. TOP BAR - Sentence Case */}
@@ -984,6 +1036,9 @@ export default function App() {
         commercialVendors={commercialVendors}
         musicians={musicians}
         reviews={reviews}
+        siteNotification={siteNotification}
+        onSaveNotification={handleSaveSiteNotification}
+        onDeleteNotification={handleDeleteSiteNotification}
         onClose={handleCloseAdmin}
         onCancelBooking={handleCancelBooking}
         onCancelKidsTable={handleCancelKidsTable}
