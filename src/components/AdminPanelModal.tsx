@@ -96,7 +96,16 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   if (!isOpen) return null;
 
   const [passwordInput, setPasswordInput] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      return (
+        localStorage.getItem('ujbudazsibi_admin_auth_v1') === 'true' ||
+        sessionStorage.getItem('ujbudazsibi_admin_auth_v1') === 'true'
+      );
+    } catch {
+      return false;
+    }
+  });
   const [passwordError, setPasswordError] = useState('');
 
   const [activeTab, setActiveTab] = useState<
@@ -129,10 +138,26 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     e.preventDefault();
     if (passwordInput.trim() === DEFAULT_ADMIN_PASSWORD) {
       setIsAuthenticated(true);
+      try {
+        localStorage.setItem('ujbudazsibi_admin_auth_v1', 'true');
+        sessionStorage.setItem('ujbudazsibi_admin_auth_v1', 'true');
+      } catch {}
       setPasswordError('');
     } else {
       setPasswordError('Helytelen jelszó! Kérjük, próbáld újra.');
     }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    try {
+      localStorage.removeItem('ujbudazsibi_admin_auth_v1');
+      sessionStorage.removeItem('ujbudazsibi_admin_auth_v1');
+    } catch {}
+  };
+
+  const handleOpenInNewWindow = () => {
+    window.open(window.location.origin + window.location.pathname + '#admin', '_blank');
   };
 
   // Helper to calculate days remaining until event
@@ -589,13 +614,38 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer shrink-0"
-            title="Bezárás"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleOpenInNewWindow}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-[#1A3626] bg-[#EFE8DA] hover:bg-[#E2D8C3] border border-[#D5C7AF] transition-colors cursor-pointer shadow-2xs"
+              title="Admin felület megnyitása külön böngészőlapon (így párhuzamosan ellenőrizheted a weboldalt)"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-stone-700" />
+              <span className="hidden sm:inline">Megnyitás külön lapon</span>
+              <span className="sm:hidden">Külön lap</span>
+            </button>
+
+            {isAuthenticated && (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="px-2.5 py-1.5 text-xs font-semibold text-stone-600 hover:text-red-700 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                title="Kijelentkezés a védett admin felületről"
+              >
+                <Lock className="w-3.5 h-3.5 text-stone-500" />
+                <span className="hidden md:inline">Zárolás</span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer shrink-0"
+              title="Bezárás"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* PASSWORD SCREEN IF NOT AUTHENTICATED */}
@@ -1534,17 +1584,17 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       </div>
 
                       {notificationDraft.trim() ? (
-                        <div className="bg-[#1A3626] text-[#FAF7F2] rounded-xl border border-[#C88A36]/60 p-3 sm:p-4 flex items-center justify-between gap-3 shadow-xs">
+                        <div className="bg-[#DC2626] text-white rounded-xl border border-red-700 p-3 sm:p-4 flex items-center justify-between gap-3 shadow-md">
                           <div className="flex items-center gap-3 min-w-0">
-                            <span className="p-1.5 rounded-lg bg-[#C88A36] text-[#14261B] shrink-0 font-bold shadow-2xs">
-                              <Bell className="w-4 h-4" />
+                            <span className="p-1.5 rounded-lg bg-white text-red-700 shrink-0 font-bold shadow-xs">
+                              <Bell className="w-4 h-4 fill-current" />
                             </span>
-                            <p className="text-xs sm:text-sm font-medium text-[#FAF7F2] leading-snug">
+                            <p className="text-xs sm:text-sm font-bold text-white leading-snug">
                               {notificationDraft}
                             </p>
                           </div>
-                          <span className="text-[10px] text-[#E7C286] font-mono shrink-0 font-semibold uppercase tracking-wider bg-black/20 px-2 py-0.5 rounded">
-                            Élő doboz
+                          <span className="text-[10px] text-white/90 font-mono shrink-0 font-semibold uppercase tracking-wider bg-black/20 px-2.5 py-1 rounded">
+                            Piros hírsáv előnézet
                           </span>
                         </div>
                       ) : (

@@ -488,26 +488,26 @@ export default function App() {
         </div>
       )}
 
-      {/* 0. DEDICATED TOP SITE NOTIFICATION BOX (Max 200 chars - Only rendered if not empty) */}
+      {/* 0. DEDICATED TOP SITE NOTIFICATION BOX (Max 200 chars - Red background as requested) */}
       {siteNotification && siteNotification.trim().length > 0 && (
         <aside
           role="alert"
           aria-live="polite"
-          className="bg-[#1A3626] text-[#FAF7F2] border-b border-[#C88A36]/50 px-3.5 sm:px-6 py-2.5 relative z-50 shadow-xs animate-in fade-in slide-in-from-top-2 duration-300"
+          className="bg-[#DC2626] text-white border-b border-red-700 px-3.5 sm:px-6 py-2.5 relative z-50 shadow-md animate-in fade-in slide-in-from-top-2 duration-300"
         >
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs sm:text-sm">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              <span className="p-1 sm:p-1.5 rounded-lg bg-[#C88A36] text-[#14261B] shrink-0 font-bold shadow-2xs">
-                <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="p-1 sm:p-1.5 rounded-lg bg-white text-red-700 shrink-0 font-bold shadow-xs">
+                <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
               </span>
-              <p className="font-medium text-[#FAF7F2] leading-snug break-words">
+              <p className="font-bold text-white leading-snug break-words">
                 {siteNotification}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setSiteNotification('')}
-              className="text-stone-300 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
+              className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/20 transition-colors shrink-0 cursor-pointer"
               title="Értesítés elrejtése"
             >
               <X className="w-4 h-4" />

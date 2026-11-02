@@ -657,113 +657,97 @@ Hitelesítés: https://www.ujbudazsibi.hu/verify/${confirmedData.bookingId}`;
           </div>
         )}
 
-        {/* Step 4: Digital Pass */}
+        {/* Step 4: Digital Pass (Exact UX from Screenshot) */}
         {step === 'success' && confirmedData && (
           <div className="p-5 sm:p-6 space-y-4">
-            <div className="text-center no-print">
-              <div className="w-12 h-12 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center mx-auto mb-2 shadow-xs">
-                <CheckCircle2 className="w-7 h-7" />
+            <div className="text-center no-print pt-1">
+              <div className="w-14 h-14 bg-[#D1FAE5] text-[#059669] rounded-full flex items-center justify-center mx-auto mb-2.5 shadow-xs">
+                <CheckCircle2 className="w-8 h-8 text-[#059669]" />
               </div>
-              <h3 className="text-lg font-black text-stone-900 font-serif">
+              <h3 className="text-xl sm:text-2xl font-black text-stone-900 font-serif">
                 Sikeres asztalfoglalás és fizetés!
               </h3>
             </div>
 
-            {/* Official Pass - Printable 1-page A4 Pass */}
+            {/* Official Pass - Exact Card UX with emerald rounded border */}
             <div
               id="printable-pass"
-              className="bg-white border-2 border-[#1A3626] rounded-2xl p-5 sm:p-6 shadow-sm space-y-4 relative"
+              className="bg-white border-2 border-[#15803D] rounded-3xl p-5 sm:p-6 space-y-3.5 shadow-sm relative"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#1A3626]"></span>
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1A3626] font-serif">
-                      Újbudazsibi · Hivatalos árusi engedély
-                    </span>
+                  <div className="text-[#15803D] font-extrabold text-[11px] tracking-wider uppercase font-sans leading-tight">
+                    ÚJBUDAZSIBI · HIVATALOS ÁRUSI
+                    <span className="block">ENGEDÉLY</span>
                   </div>
-                  <h4 className="text-2xl font-black text-stone-900 mt-1 font-serif tracking-tight">
+                  <h4 className="text-2xl sm:text-3xl font-black text-stone-900 font-serif tracking-tight mt-1">
                     STAND #{confirmedData.tableId}
                   </h4>
-                  <p className="text-xs text-[#254834] font-bold mt-0.5">
+                  <p className="text-xs sm:text-sm font-semibold text-stone-700 mt-0.5">
                     {confirmedData.locationName}
-                  </p>
-                  <p className="text-[11px] text-stone-600 font-medium">
-                    {confirmedData.streetName}
                   </p>
                 </div>
 
                 {/* Genuine Scannable QR Code */}
-                <div className="bg-[#FAF7F2] p-2 rounded-xl border border-stone-300 flex flex-col items-center shrink-0 shadow-2xs">
+                <div className="bg-[#FAF7F2] p-2 rounded-2xl border border-stone-200 flex flex-col items-center shrink-0">
                   <QrCodeDisplay
                     bookingId={confirmedData.bookingId}
                     tableId={confirmedData.tableId}
                     sellerName={confirmedData.sellerName}
                     locationName={confirmedData.locationName}
-                    size={100}
+                    size={84}
                   />
-                  <span className="text-[10px] font-mono font-bold text-stone-800 mt-1 tracking-tight">
+                  <span className="text-[9px] font-mono font-semibold text-stone-500 mt-1 tracking-tight">
                     {confirmedData.bookingId}
                   </span>
                 </div>
               </div>
 
               {/* Booking Details Grid */}
-              <div className="grid grid-cols-2 gap-2.5 text-xs pt-3 border-t border-stone-200">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs pt-3 border-t border-stone-200">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-stone-400 block tracking-wider">Árus neve</span>
-                  <span className="font-bold text-stone-900 text-sm font-serif">{confirmedData.sellerName}</span>
+                  <span className="text-[11px] text-stone-400 block">Árus neve:</span>
+                  <span className="font-bold text-stone-900 text-sm font-sans block">{confirmedData.sellerName}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-stone-400 block tracking-wider">Vásári időpont</span>
-                  <span className="font-semibold text-stone-900">{confirmedData.weekendDates}</span>
+                  <span className="text-[11px] text-stone-400 block">Időpont:</span>
+                  <span className="font-semibold text-stone-900 text-xs sm:text-sm block">{confirmedData.weekendDates}</span>
                 </div>
                 <div className="col-span-2">
-                  <span className="text-[10px] uppercase font-bold text-stone-400 block tracking-wider">Helyszín pontos címe</span>
-                  <span className="text-stone-800 text-xs font-medium">{confirmedData.streetName}</span>
+                  <span className="text-[11px] text-stone-400 block">Helyszín:</span>
+                  <span className="text-stone-800 text-xs font-medium block">{confirmedData.streetName}</span>
                 </div>
                 <div className="col-span-2">
-                  <span className="text-[10px] uppercase font-bold text-stone-400 block tracking-wider">Lefoglalt standterület</span>
-                  <span className="text-stone-900 text-xs font-bold">250 × 100 cm (120×80 cm fa asztal biztosítva + 65-65 cm oldalsó pakolás)</span>
+                  <span className="text-[11px] text-stone-400 block">Stand terület:</span>
+                  <span className="text-stone-900 text-xs font-bold block">250 × 100 cm (120×80 cm asztal + 65–65 cm oldalsó pakolás)</span>
                 </div>
               </div>
 
-              {/* Price & Official Stamp */}
-              <div className="pt-3 border-t border-stone-200 flex items-center justify-between text-xs font-semibold">
-                <div>
-                  <span className="text-stone-500 text-[11px] block">Részvételi hozzájárulás:</span>
-                  <span className="font-mono text-[#1A3626] tabular-nums font-bold text-sm">
-                    {confirmedData.totalPaid.toLocaleString('hu-HU')} Ft (Online kiegyenlítve)
-                  </span>
-                </div>
-                <div className="text-right text-[10px] text-stone-500">
-                  <span className="font-serif italic font-bold text-[#254834] block">Újbudazsibi Közösségi Vásár</span>
-                  <span>www.ujbudazsibi.hu</span>
-                </div>
-              </div>
-
-              {/* Print footnote */}
-              <div className="pt-2 border-t border-dashed border-stone-200 text-[10px] text-stone-500 flex items-center justify-between">
-                <span>Nyomtatva a helyszíni belépéshez vagy mutasd be mobilon.</span>
-                <span className="font-mono">{confirmedData.bookingId}</span>
+              {/* Price & Status */}
+              <div className="pt-3 border-t border-stone-200 flex items-center justify-between text-xs">
+                <span className="text-stone-600 text-xs font-medium">Kifizetett díj:</span>
+                <span className="font-mono text-[#15803D] font-bold text-base sm:text-lg tabular-nums">
+                  {confirmedData.totalPaid.toLocaleString('hu-HU')} Ft (Rendezve)
+                </span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 no-print">
+            {/* Actions: Full-width stacked buttons exactly as in screenshot */}
+            <div className="space-y-2.5 pt-2 no-print">
               <button
                 type="button"
                 onClick={handlePrint}
-                className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-[#14261B] bg-[#E7C286] hover:bg-[#C88A36] rounded-xl transition-colors cursor-pointer border border-[#C88A36] shadow-2xs font-serif"
+                className="w-full py-3 bg-[#EFE8DA] hover:bg-[#E5DAC6] text-stone-900 font-bold rounded-2xl text-xs sm:text-sm border border-[#D5C7AF] flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-2xs font-sans"
                 title="1 oldalas PDF nyomtatás vagy letöltés"
               >
-                <Printer className="w-4 h-4" />
-                <span>Nyomtatás / PDF mentés (1 oldal)</span>
+                <Printer className="w-4 h-4 text-stone-700" />
+                <span>Nyomtatás / PDF</span>
               </button>
               
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 text-xs font-bold text-[#E7C286] bg-[#1A3626] hover:bg-[#254834] rounded-xl cursor-pointer border border-[#426E53] shadow-xs font-serif"
+                className="w-full py-3 bg-[#15803D] hover:bg-[#166534] text-white font-bold rounded-2xl text-xs sm:text-sm transition-colors cursor-pointer shadow-xs font-sans"
               >
                 Vissza a vásártérképhez
               </button>
