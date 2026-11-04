@@ -1,15 +1,6 @@
 -- ====================================================================
 -- Újbudazsibi (www.ujbudazsibi.hu) — Supabase PostgreSQL Adatbázis Séma
--- Készült: Vercel + Supabase éles telepítéshez
--- ====================================================================
--- 
--- HASZNÁLATI ÚTMUTATÓ:
--- 1. Nyisd meg a https://supabase.com oldalt és lépj be a projektedbe.
--- 2. A bal oldali menüben kattints a 'SQL Editor' ikonra.
--- 3. Kattints a 'New Query' gombra, másold be az ALÁBBI TELJES SZÖVEGET,
---    majd nyomd meg a zöld 'RUN' (Futtatás) gombot.
--- 4. Ez létrehozza az összes táblát, indexet és a Row Level Security (RLS)
---    jogosultságokat, így a weboldal azonnal és hibamentesen tud írni/olvasni!
+-- Készült: Vercel + Supabase telepítéshez
 -- ====================================================================
 
 -- 1. Árusok és asztalfoglalások tábla
@@ -31,7 +22,7 @@ CREATE TABLE IF NOT EXISTS public.bookings (
   categories TEXT[] DEFAULT '{}',
   items_description TEXT,
   total_paid INTEGER NOT NULL,
-  status VARCHAR(20) DEFAULT 'confirmed', -- 'confirmed' | 'cancelled'
+  status VARCHAR(20) DEFAULT 'confirmed', -- confirmed, cancelled
   cancelled_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -98,128 +89,28 @@ CREATE TABLE IF NOT EXISTS public.street_musicians (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 6. Közösségi vélemények tábla
+-- 6. Anonim közösségi vélemények (csak adminisztrátori hozzáféréssel)
 CREATE TABLE IF NOT EXISTS public.market_reviews (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-  author_name VARCHAR(150),
-  role VARCHAR(50),
+  atmosphere_rating INTEGER,
+  organization_rating INTEGER,
   feedback_text TEXT,
-  is_approved BOOLEAN DEFAULT FALSE,
+  seller_feedback TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 7. Értesítési hírsáv tábla (felső piros doboz szinkronizálása)
-CREATE TABLE IF NOT EXISTS public.site_notifications (
-  id VARCHAR(50) PRIMARY KEY DEFAULT 'current_banner',
-  text TEXT NOT NULL,
-  is_active BOOLEAN DEFAULT TRUE,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- 8. Kiküldött e-mailes értesítések naplója
-CREATE TABLE IF NOT EXISTS public.sent_emails (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  recipient VARCHAR(150) NOT NULL,
-  subject TEXT NOT NULL,
-  html_preview TEXT,
-  status VARCHAR(50) DEFAULT 'sent',
-  sent_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- ====================================================================
--- ROW LEVEL SECURITY (RLS) ÉS HOZZÁFÉRÉSI SZABÁLYOK (POLICIES)
--- Kifejezetten engedélyezzük az anon kulcsos írást/olvasást a weboldalnak!
--- ====================================================================
+-- RLS (Row Level Security) Szabályok
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.commercial_vendors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kids_flea_bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.volunteers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.street_musicians ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.market_reviews ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.site_notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.sent_emails ENABLE ROW LEVEL SECURITY;
 
--- Bookings szabályok:
-DROP POLICY IF EXISTS "Public can insert bookings" ON public.bookings;
-CREATE POLICY "Public can insert bookings" ON public.bookings FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Public can read bookings" ON public.bookings;
-CREATE POLICY "Public can read bookings" ON public.bookings FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Admin can update bookings" ON public.bookings;
-CREATE POLICY "Admin can update bookings" ON public.bookings FOR UPDATE USING (true);
-
-DROP POLICY IF EXISTS "Admin can delete bookings" ON public.bookings;
-CREATE POLICY "Admin can delete bookings" ON public.bookings FOR DELETE USING (true);
-
--- Volunteers szabályok:
-DROP POLICY IF EXISTS "Public can insert volunteers" ON public.volunteers;
-CREATE POLICY "Public can insert volunteers" ON public.volunteers FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Public can read volunteers" ON public.volunteers;
-CREATE POLICY "Public can read volunteers" ON public.volunteers FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Admin can delete volunteers" ON public.volunteers;
-CREATE POLICY "Admin can delete volunteers" ON public.volunteers FOR DELETE USING (true);
-
--- Commercial szabályok:
-DROP POLICY IF EXISTS "Public can insert commercial" ON public.commercial_vendors;
-CREATE POLICY "Public can insert commercial" ON public.commercial_vendors FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Public can read commercial" ON public.commercial_vendors;
-CREATE POLICY "Public can read commercial" ON public.commercial_vendors FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Admin can delete commercial" ON public.commercial_vendors;
-CREATE POLICY "Admin can delete commercial" ON public.commercial_vendors FOR DELETE USING (true);
-
--- Kids flea szabályok:
-DROP POLICY IF EXISTS "Public can insert kids" ON public.kids_flea_bookings;
-CREATE POLICY "Public can insert kids" ON public.kids_flea_bookings FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Public can read kids" ON public.kids_flea_bookings;
-CREATE POLICY "Public can read kids" ON public.kids_flea_bookings FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Admin can delete kids" ON public.kids_flea_bookings;
-CREATE POLICY "Admin can delete kids" ON public.kids_flea_bookings FOR DELETE USING (true);
-
--- Street musicians szabályok:
-DROP POLICY IF EXISTS "Public can insert musicians" ON public.street_musicians;
-CREATE POLICY "Public can insert musicians" ON public.street_musicians FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Public can read musicians" ON public.street_musicians;
-CREATE POLICY "Public can read musicians" ON public.street_musicians FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Admin can delete musicians" ON public.street_musicians;
-CREATE POLICY "Admin can delete musicians" ON public.street_musicians FOR DELETE USING (true);
-
--- Reviews szabályok:
-DROP POLICY IF EXISTS "Public can insert reviews" ON public.market_reviews;
-CREATE POLICY "Public can insert reviews" ON public.market_reviews FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Public can read reviews" ON public.market_reviews;
-CREATE POLICY "Public can read reviews" ON public.market_reviews FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Admin can update reviews" ON public.market_reviews;
-CREATE POLICY "Admin can update reviews" ON public.market_reviews FOR UPDATE USING (true);
-
-DROP POLICY IF EXISTS "Admin can delete reviews" ON public.market_reviews;
-CREATE POLICY "Admin can delete reviews" ON public.market_reviews FOR DELETE USING (true);
-
--- Site notifications szabályok:
-DROP POLICY IF EXISTS "Public can read notifications" ON public.site_notifications;
-CREATE POLICY "Public can read notifications" ON public.site_notifications FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Admin can manage notifications" ON public.site_notifications;
-CREATE POLICY "Admin can manage notifications" ON public.site_notifications FOR ALL USING (true);
-
--- Sent emails napló:
-DROP POLICY IF EXISTS "Public can insert sent emails" ON public.sent_emails;
-CREATE POLICY "Public can insert sent emails" ON public.sent_emails FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Admin can read sent emails" ON public.sent_emails;
-CREATE POLICY "Admin can read sent emails" ON public.sent_emails FOR SELECT USING (true);
-
--- ====================================================================
--- Kész! Minden tábla és jogosultság beállítva.
--- ====================================================================
+-- Nyilvános olvasás az asztalok foglaltsági állapotához (anonimizált nézet):
+CREATE OR REPLACE VIEW public.public_table_status AS
+  SELECT table_id, location_id, status, categories, items_description,
+         CONCAT(LEFT(seller_name, 1), '. ', SUBSTRING(seller_name FROM POSITION(' ' IN seller_name) + 1)) AS display_name
+  FROM public.bookings
+  WHERE status = 'confirmed';
