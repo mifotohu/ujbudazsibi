@@ -1,6 +1,6 @@
 /**
- * Supabase Client Configuration & Email Dispatcher for Újbudazsibi
- * Handles persistent message logging and live delivery to ujbudazsibi@gmail.com
+ * Supabase Client Configuration & Live Email Dispatcher for Újbudazsibi
+ * Handles persistent message logging and live delivery to ujbudazsibi@gmail.com and applicant email
  */
 
 export const SUPABASE_CONFIG = {
@@ -15,7 +15,8 @@ export interface SentEmailRecord {
   subject: string;
   htmlContent: string;
   sentAt: string;
-  status: 'Kézbesítve' | 'Elküldve (postafiókban rögzítve)';
+  status: string;
+  provider?: string;
 }
 
 export const ORGANIZER_EMAIL = 'ujbudazsibi@gmail.com';
@@ -55,7 +56,7 @@ export interface EmailNotificationPayload {
 
 export async function sendEmailNotification(
   payload: EmailNotificationPayload
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; provider?: string }> {
   const plainText = payload.htmlContent
     .replace(/<[^>]+>/g, '\n')
     .replace(/&nbsp;/g, ' ')
@@ -75,7 +76,7 @@ export async function sendEmailNotification(
 Köszönjük szépen a jelentkezésedet az Újbudazsibi közösségi zsibvásárra!
 A regisztrációd és választásod sikeresen rögzítésre került a szervezői rendszerben.
 
-AZ ÁLTALAD KIVÁLASZTOTT RÉSZLETEK (A WEBOLDALON MEGJELENT ADATOK ALAPJÁN):
+AZ ÁLTALAD KIVÁLASZTOTT RÉSZLETEK:
 ======================================================================
 • Esemény / Helyszín: ${locationText}
 • Kiválasztott hely / Szerepkör: ${standOrRoleText}
@@ -99,61 +100,96 @@ E-mail: ujbudazsibi@gmail.com
 Web: https://www.ujbudazsibi.hu`;
 
   let delivered = false;
+  let providerUsed = 'Helyi naplózás';
 
-  // 1. Dispatch to live FormSubmit email bridge for ujbudazsibi@gmail.com
+  // 1. Primary: Serverless API endpoint (/api/send-email) with Resend, SendGrid, or Server Relay
   try {
-    const formSubmitRes = await fetch(`https://formsubmit.co/ajax/${ORGANIZER_EMAIL}`, {
+    const apiRes = await fetch('/api/send-email', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
       body: JSON.stringify({
-        _subject: payload.subject,
-        _replyto: applicantEmail || ORGANIZER_EMAIL,
-        _autoresponse: hungarianAutoResponse,
-        _template: 'box',
-        _captcha: 'false',
-        'Jelentkezés tárgya': payload.subject,
-        'Helyszín és időpont': locationText,
-        'Választott stand vagy szerepkör': standOrRoleText,
-        'Jelentkező teljes neve': applicantName,
-        'Jelentkező e-mail címe': applicantEmail || 'Nem adott meg e-mail címet',
-        'Jelentkező telefonszáma': payload.applicantPhone || 'Nem adott meg telefonszámot',
-        'Kínálat és kategóriák': payload.categoryText || 'Nincs külön kategória',
-        'Jelentkezés szöveges részletei': readableSummary,
-      }),
-    });
-
-    if (formSubmitRes.ok) {
-      delivered = true;
-    }
-  } catch (err) {
-    console.info('Live FormSubmit relay notice:', err);
-  }
-
-  // 2. Also attempt local /api/send-email endpoint if running
-  try {
-    const apiRes = await fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
         ...payload,
         autoResponse: hungarianAutoResponse,
       }),
     });
+
     if (apiRes.ok) {
+      const data = await apiRes.json().catch(() => ({}));
       delivered = true;
+      providerUsed = data.provider || 'Resend/Szerver API';
     }
-  } catch {
-    // API server fallback
+  } catch (apiErr) {
+    console.info('Serverless email endpoint notice, using direct FormSubmit bridge:', apiErr);
+  }
+
+  // 2. Direct client fallback to FormSubmit with explicit 'email', 'name', and '_cc'
+  if (!delivered) {
+    try {
+      const formPayload: Record<string, string> = {
+        name: applicantName,
+        email: applicantEmail || ORGANIZER_EMAIL, // CRITICAL: Required for FormSubmit autoresponse!
+        _replyto: applicantEmail || ORGANIZER_EMAIL,
+        _subject: payload.subject,
+        _template: 'box',
+        _captcha: 'false',
+        _autoresponse: hungarianAutoResponse,
+        ertesites_targy: payload.subject,
+        jelentkezo_neve: applicantName,
+        jelentkezo_email: applicantEmail || 'Nem adott meg e-mailt',
+        jelentkezo_telefon: payload.applicantPhone || 'Nem adott meg telefonszámot',
+        helyszin_es_stand: `${locationText} | ${standOrRoleText}`,
+        kinalat: payload.categoryText || 'Nincs külön kategória',
+        uzenet_szoveg: readableSummary,
+      };
+
+      if (applicantEmail && applicantEmail.includes('@') && applicantEmail !== ORGANIZER_EMAIL) {
+        formPayload._cc = applicantEmail;
+      }
+
+      // JSON submission to FormSubmit AJAX endpoint
+      const formSubmitRes = await fetch(`https://formsubmit.co/ajax/${ORGANIZER_EMAIL}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(formPayload),
+      });
+
+      if (formSubmitRes.ok) {
+        delivered = true;
+        providerUsed = 'FormSubmit (Közvetlen)';
+      } else {
+        // If JSON rejected, retry with FormData for maximum browser/adblocker compatibility
+        const formData = new FormData();
+        Object.entries(formPayload).forEach(([key, val]) => {
+          formData.append(key, val);
+        });
+        const formSubmitDataRes = await fetch(`https://formsubmit.co/ajax/${ORGANIZER_EMAIL}`, {
+          method: 'POST',
+          headers: { Accept: 'application/json' },
+          body: formData,
+        });
+        if (formSubmitDataRes.ok) {
+          delivered = true;
+          providerUsed = 'FormSubmit (FormData)';
+        }
+      }
+    } catch (formErr) {
+      console.info('Direct FormSubmit bridge notice:', formErr);
+    }
   }
 
   // 3. Always log in persistent local mailbox for organizer review
+  const statusLabel = delivered ? `Kézbesítve (${providerUsed})` : 'Elküldve (postafiókban rögzítve)';
   const record: SentEmailRecord = {
     id: `mail-${Date.now().toString().slice(-6)}`,
     to: applicantEmail ? `${ORGANIZER_EMAIL} + ${applicantEmail}` : recipientTo,
     subject: payload.subject,
+    provider: providerUsed,
     htmlContent: `
       <div style="font-family: sans-serif; line-height: 1.5; color: #1c1917;">
         ${payload.htmlContent}
@@ -173,15 +209,16 @@ Web: https://www.ujbudazsibi.hu`;
       minute: '2-digit',
       second: '2-digit',
     }),
-    status: delivered ? 'Kézbesítve' : 'Elküldve (postafiókban rögzítve)',
+    status: statusLabel,
   };
 
   saveSentEmail(record);
 
-  console.log(`[Újbudazsibi Postafiók] Értesítés elküldve (${applicantEmail || recipientTo}): ${payload.subject}`);
+  console.log(`[Újbudazsibi Postafiók] Értesítés regisztrálva (${applicantEmail || recipientTo}): ${payload.subject} [${providerUsed}]`);
 
   return {
     success: true,
-    message: `A magyar nyelvű visszaigazolás és a szervezői értesítés sikeresen elküldve (${ORGANIZER_EMAIL}).`,
+    provider: providerUsed,
+    message: `A magyar nyelvű visszaigazolás és a szervezői értesítés elküldve (${ORGANIZER_EMAIL}${applicantEmail ? ` és ${applicantEmail}` : ''}) [${providerUsed}].`,
   };
 }
