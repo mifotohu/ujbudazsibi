@@ -11,7 +11,13 @@ import {
   formatGdprName,
 } from '../types/market';
 import { CATEGORIES, VOLUNTEER_TASKS } from '../data/mockData';
-import { getSentEmails } from '../lib/supabase';
+import {
+  getSentEmails,
+  testSendEmailNotification,
+  testSupabaseConnection,
+  SUPABASE_CONFIG,
+  ORGANIZER_EMAIL,
+} from '../lib/supabase';
 import {
   X,
   ShieldAlert,
@@ -48,6 +54,9 @@ import {
   RefreshCw,
   Bell,
   Megaphone,
+  Copy,
+  Send,
+  HelpCircle,
 } from 'lucide-react';
 
 interface AdminPanelModalProps {
@@ -133,6 +142,224 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     sheetCount: number;
     fileName: string;
   } | null>(null);
+
+  // Email Diagnostic & Test State
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
+  const [emailTestResult, setEmailTestResult] = useState<{
+    success: boolean;
+    message: string;
+    requiresActivation?: boolean;
+  } | null>(null);
+
+  // Supabase Connection Test & SQL Copy State
+  const [isTestingSupabase, setIsTestingSupabase] = useState(false);
+  const [supabaseTestResult, setSupabaseTestResult] = useState<{
+    connected: boolean;
+    message: string;
+    url?: string;
+    tablesFound?: boolean;
+  } | null>(null);
+  const [copiedSql, setCopiedSql] = useState(false);
+
+  const handleRunEmailTest = async () => {
+    setIsTestingEmail(true);
+    setEmailTestResult(null);
+    try {
+      const res = await testSendEmailNotification();
+      setEmailTestResult(res);
+    } catch (err: any) {
+      setEmailTestResult({
+        success: false,
+        message: `Hiba a küldés során: ${err?.message || err}`,
+      });
+    } finally {
+      setIsTestingEmail(false);
+    }
+  };
+
+  const handleRunSupabaseTest = async () => {
+    setIsTestingSupabase(true);
+    setSupabaseTestResult(null);
+    try {
+      const res = await testSupabaseConnection();
+      setSupabaseTestResult(res);
+    } catch (err: any) {
+      setSupabaseTestResult({
+        connected: false,
+        message: `Hiba: ${err?.message || err}`,
+      });
+    } finally {
+      setIsTestingSupabase(false);
+    }
+  };
+
+  const handleCopySqlSchema = () => {
+    const sql = `-- ====================================================================
+-- Újbudazsibi (www.ujbudazsibi.hu) — Supabase PostgreSQL Adatbázis Séma
+-- Készült: Vercel + Supabase éles telepítéshez
+-- ====================================================================
+
+-- 1. Árusok és asztalfoglalások tábla
+CREATE TABLE IF NOT EXISTS public.bookings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_ref VARCHAR(50) UNIQUE NOT NULL,
+  table_id INTEGER NOT NULL,
+  location_id VARCHAR(50) NOT NULL,
+  location_name VARCHAR(100) NOT NULL,
+  street_name TEXT NOT NULL,
+  weekend_dates VARCHAR(100) NOT NULL,
+  event_date DATE NOT NULL,
+  seller_name VARCHAR(150) NOT NULL,
+  email VARCHAR(150) NOT NULL,
+  phone VARCHAR(50) NOT NULL,
+  postal_code VARCHAR(10) NOT NULL,
+  street_address TEXT NOT NULL,
+  is_immediate_neighbor BOOLEAN DEFAULT FALSE,
+  categories TEXT[] DEFAULT '{}',
+  items_description TEXT,
+  total_paid INTEGER NOT NULL,
+  status VARCHAR(20) DEFAULT 'confirmed',
+  cancelled_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 2. Vállalkozói / Céges Koncessziók
+CREATE TABLE IF NOT EXISTS public.commercial_vendors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_type VARCHAR(50) NOT NULL,
+  location_id VARCHAR(50) NOT NULL,
+  location_name VARCHAR(100) NOT NULL,
+  weekend_dates VARCHAR(100) NOT NULL,
+  company_name VARCHAR(200) NOT NULL,
+  tax_number VARCHAR(50) NOT NULL,
+  billing_address TEXT NOT NULL,
+  contact_person VARCHAR(150) NOT NULL,
+  email VARCHAR(150) NOT NULL,
+  phone VARCHAR(50) NOT NULL,
+  program_or_menu TEXT NOT NULL,
+  fee_paid INTEGER NOT NULL,
+  status VARCHAR(20) DEFAULT 'approved',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 3. Gyerekzsibi tábla
+CREATE TABLE IF NOT EXISTS public.kids_flea_bookings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_code VARCHAR(20) NOT NULL,
+  location_id VARCHAR(50) NOT NULL,
+  parent_name VARCHAR(150) NOT NULL,
+  child_name VARCHAR(150) NOT NULL,
+  child_age INTEGER NOT NULL,
+  email VARCHAR(150) NOT NULL,
+  phone VARCHAR(50) NOT NULL,
+  items_description TEXT,
+  status VARCHAR(20) DEFAULT 'confirmed',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 4. Önkéntesek tábla
+CREATE TABLE IF NOT EXISTS public.volunteers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  full_name VARCHAR(150) NOT NULL,
+  email VARCHAR(150) NOT NULL,
+  phone VARCHAR(50) NOT NULL,
+  location_id VARCHAR(50) NOT NULL,
+  location_name VARCHAR(100) NOT NULL,
+  tasks TEXT[] DEFAULT '{}',
+  other_offer TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 5. Utcazenész jelentkezések
+CREATE TABLE IF NOT EXISTS public.street_musicians (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  musician_name VARCHAR(150) NOT NULL,
+  contact_name VARCHAR(150) NOT NULL,
+  email VARCHAR(150) NOT NULL,
+  phone VARCHAR(50) NOT NULL,
+  genre VARCHAR(100) NOT NULL,
+  instruments VARCHAR(150),
+  location_id VARCHAR(50) NOT NULL,
+  preferred_time_slot VARCHAR(100),
+  note TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 6. Közösségi vélemények tábla
+CREATE TABLE IF NOT EXISTS public.market_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  author_name VARCHAR(150),
+  role VARCHAR(50),
+  feedback_text TEXT,
+  is_approved BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 7. Értesítési hírsáv tábla
+CREATE TABLE IF NOT EXISTS public.site_notifications (
+  id VARCHAR(50) PRIMARY KEY DEFAULT 'current_banner',
+  text TEXT NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 8. Kiküldött e-mailes értesítések naplója
+CREATE TABLE IF NOT EXISTS public.sent_emails (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  recipient VARCHAR(150) NOT NULL,
+  subject TEXT NOT NULL,
+  html_preview TEXT,
+  status VARCHAR(50) DEFAULT 'sent',
+  sent_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- RLS BIZTONSÁGI SZABÁLYOK (ENGEDÉLYEZVE A PUBLIKUS ÍRÁS ÉS OLVASÁS)
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.commercial_vendors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kids_flea_bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.volunteers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.street_musicians ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.market_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.site_notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sent_emails ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public can insert bookings" ON public.bookings FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public can read bookings" ON public.bookings FOR SELECT USING (true);
+CREATE POLICY "Admin can update bookings" ON public.bookings FOR UPDATE USING (true);
+CREATE POLICY "Admin can delete bookings" ON public.bookings FOR DELETE USING (true);
+
+CREATE POLICY "Public can insert volunteers" ON public.volunteers FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public can read volunteers" ON public.volunteers FOR SELECT USING (true);
+CREATE POLICY "Admin can delete volunteers" ON public.volunteers FOR DELETE USING (true);
+
+CREATE POLICY "Public can insert commercial" ON public.commercial_vendors FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public can read commercial" ON public.commercial_vendors FOR SELECT USING (true);
+CREATE POLICY "Admin can delete commercial" ON public.commercial_vendors FOR DELETE USING (true);
+
+CREATE POLICY "Public can insert kids" ON public.kids_flea_bookings FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public can read kids" ON public.kids_flea_bookings FOR SELECT USING (true);
+CREATE POLICY "Admin can delete kids" ON public.kids_flea_bookings FOR DELETE USING (true);
+
+CREATE POLICY "Public can insert musicians" ON public.street_musicians FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public can read musicians" ON public.street_musicians FOR SELECT USING (true);
+CREATE POLICY "Admin can delete musicians" ON public.street_musicians FOR DELETE USING (true);
+
+CREATE POLICY "Public can insert reviews" ON public.market_reviews FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public can read reviews" ON public.market_reviews FOR SELECT USING (true);
+CREATE POLICY "Admin can update reviews" ON public.market_reviews FOR UPDATE USING (true);
+CREATE POLICY "Admin can delete reviews" ON public.market_reviews FOR DELETE USING (true);
+
+CREATE POLICY "Public can read notifications" ON public.site_notifications FOR SELECT USING (true);
+CREATE POLICY "Admin can manage notifications" ON public.site_notifications FOR ALL USING (true);
+
+CREATE POLICY "Public can insert sent emails" ON public.sent_emails FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admin can read sent emails" ON public.sent_emails FOR SELECT USING (true);
+`;
+    navigator.clipboard.writeText(sql);
+    setCopiedSql(true);
+    setTimeout(() => setCopiedSql(false), 3000);
+  };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1419,124 +1646,359 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 </div>
               )}
 
-              {/* TAB 7: SUPABASE & VERCEL INSTRUCTIONS */}
+              {/* TAB 7: SUPABASE & VERCEL INSTRUCTIONS & CONNECTION TEST */}
               {activeTab === 'supabase' && (
-                <div className="bg-white rounded-xl border border-stone-200 p-5 space-y-4 text-xs text-stone-700 leading-relaxed">
-                  <div className="flex items-center gap-2 text-stone-900 font-bold text-sm font-serif">
-                    <Database className="w-4 h-4 text-emerald-800" />
-                    <span>Hogyan működik most az adatbázis és mit kell módosítani a Vercel / Supabase-en?</span>
+                <div className="bg-white rounded-2xl border border-stone-200 p-5 sm:p-6 space-y-6 text-xs text-stone-700 leading-relaxed">
+                  
+                  {/* Status Banner */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-stone-50 rounded-xl border border-stone-200">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Database className="w-4 h-4 text-emerald-800" />
+                        <h4 className="font-bold text-stone-900 text-sm font-serif">
+                          Adatbázis állapota és felhő szinkronizáció
+                        </h4>
+                      </div>
+                      <p className="text-stone-600 mt-1">
+                        Jelenlegi üzemmód:{' '}
+                        {SUPABASE_CONFIG.isConfigured ? (
+                          <span className="font-bold text-emerald-800">
+                            Supabase felhő adatbázis összekapcsolva ({SUPABASE_CONFIG.url})
+                          </span>
+                        ) : (
+                          <span className="font-bold text-amber-800">
+                            Böngésző helyi adatbázis (localStorage) aktív + E-mail értesítő híd
+                          </span>
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleRunSupabaseTest}
+                        disabled={isTestingSupabase}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-amber-300 font-bold rounded-lg cursor-pointer transition-colors shadow-2xs text-xs"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isTestingSupabase ? 'animate-spin' : ''}`} />
+                        <span>{isTestingSupabase ? 'Kapcsolat tesztelése...' : 'Kapcsolat ellenőrzése'}</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl space-y-1.5 text-emerald-950">
-                    <strong className="block text-sm font-serif">1. Jelenleg azonnal és önállóan működik a weboldal:</strong>
-                    <p>
-                      Minden standfoglalás, lemondás, önkéntes regisztráció, céges jelentkezés és vélemény <strong>azonnal és megbízhatóan rögzítésre kerül a böngésző helyi adatbázisában (localStorage)</strong>. Ezzel egy időben a rendszer minden egyes foglalásról és jelentkezésről <strong>valós idejű e-mailes értesítést küld az ujbudazsibi@gmail.com címre</strong> a beépített értesítő hídon keresztül!
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <strong className="block text-stone-900 text-sm font-serif">
-                      2. Mikor és mit kell beállítanod a Supabase és Vercel felületen?
-                    </strong>
-                    <p>
-                      Csak akkor szükséges bármit módosítanod, ha azt szeretnéd, hogy több különböző számítógépről vagy telefonról belépve is valós időben ugyanaz a központi felhő adatbázis szinkronizálódjon.
-                    </p>
-                    <ol className="list-decimal pl-5 space-y-2 pt-1">
-                      <li>
-                        <strong>Supabase projekt létrehozása:</strong> Nyiss fiókot a <a href="https://supabase.com" target="_blank" rel="noreferrer" className="underline font-bold text-emerald-800">supabase.com</a> oldalon, és hozz létre egy új ingyenes projektet (pl. <em>ujbudazsibi</em>).
-                      </li>
-                      <li>
-                        <strong>Adatbázis táblák létrehozása:</strong> A projekt gyökérkönyvtárában található egy kész <code>supabase-schema.sql</code> fájl. A Supabase bal oldali menüjében kattints az <strong>SQL Editor</strong> gombra, illeszd be a fájl tartalmát, majd nyomd meg a <strong>RUN</strong> gombot. (Ez azonnal létrehozza az összes táblát: árusok, önkéntesek, partnerek, vélemények).
-                      </li>
-                      <li>
-                        <strong>Vercel környezeti változók hozzáadása:</strong> A Vercel Dashboardon nyisd meg a projektedet, lépj a <strong>Settings → Environment Variables</strong> fülre, és add hozzá ezt a két kulcsot (a Supabase <em>Project Settings → API</em> menüpontjából):
-                        <div className="bg-stone-900 text-amber-300 p-3 rounded-lg font-mono text-[11px] mt-1.5 space-y-1">
-                          <div>VITE_SUPABASE_URL = "https://[a-te-projekted].supabase.co"</div>
-                          <div>VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5..."</div>
+                  {/* Test Result Callout if run */}
+                  {supabaseTestResult && (
+                    <div
+                      className={`p-4 rounded-xl border ${
+                        supabaseTestResult.connected
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                          : 'bg-amber-50 border-amber-300 text-amber-950'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        {supabaseTestResult.connected ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                        )}
+                        <div className="space-y-1">
+                          <strong className="block text-sm font-bold">
+                            {supabaseTestResult.connected
+                              ? '✅ Sikeres Supabase kapcsolat!'
+                              : 'ℹ️ Supabase felhő állapot:'}
+                          </strong>
+                          <p className="leading-relaxed">{supabaseTestResult.message}</p>
+                          {supabaseTestResult.url && (
+                            <div className="font-mono text-[11px] bg-white/70 p-1.5 rounded mt-1 border border-emerald-200">
+                              Adatbázis URL: {supabaseTestResult.url}
+                            </div>
+                          )}
                         </div>
-                      </li>
-                      <li>
-                        <strong>Újratelepítés (Redeploy):</strong> A Vercel <em>Deployments</em> menüjében a legutóbbi verziónál kattints a <strong>Redeploy</strong> gombra. Ezzel az oldal automatikusan összekapcsolódik a felhő adatbázissal!
-                      </li>
-                    </ol>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* What needs to be changed in Vercel & Supabase */}
+                  <div className="space-y-3">
+                    <h5 className="text-sm font-bold text-stone-900 font-serif">
+                      Mit kell módosítanod a Vercel és Supabase felületen?
+                    </h5>
+                    <p className="text-stone-600">
+                      A weboldal <strong>azonnal működőképes önállóan is</strong>, az asztalfoglalások, lemondások, önkéntesek és vélemények azonnal elmentődnek helyben és e-mailben is.
+                      Ha szeretnéd, hogy a foglalások egy központi felhő adatbázisban tárolódjanak (hogy több eszközről is ugyanazt lássátok), végezd el ezt a 3 egyszerű lépést:
+                    </p>
+                  </div>
+
+                  {/* Step 1: SQL Schema */}
+                  <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <strong className="text-stone-900 text-sm font-bold block">
+                          1. Lépés: Supabase SQL séma létrehozása (1 kattintás)
+                        </strong>
+                        <span className="text-stone-600 text-xs">
+                          Nyisd meg a Supabase-t, lépj az <strong>SQL Editor</strong> menübe, és illeszd be ezt a kész sémát:
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCopySqlSchema}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-lg cursor-pointer transition-colors shadow-2xs shrink-0 text-xs"
+                      >
+                        {copiedSql ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Másolva a vágólapra!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Teljes SQL Séma Másolása</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-stone-500 italic">
+                      A séma tartalmazza a <code>bookings</code> (árusok), <code>volunteers</code> (önkéntesek), <code>commercial_vendors</code> (cégek), <code>kids_flea_bookings</code> (gyerekzsibi), <code>market_reviews</code> (vélemények) és <code>site_notifications</code> táblákat, valamint a nyilvános engedélyeket (RLS Policies), így nem fog "403 Forbidden" hibát dobni.
+                    </p>
+                  </div>
+
+                  {/* Step 2: Vercel Environment Variables */}
+                  <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-2">
+                    <strong className="text-stone-900 text-sm font-bold block">
+                      2. Lépés: Vercel környezeti változók (Environment Variables)
+                    </strong>
+                    <p className="text-stone-600 text-xs">
+                      A Vercel felületen a projekted <strong>Settings → Environment Variables</strong> fülén add hozzá ezt a két értéket (a Supabase <em>Project Settings → API</em> menüpontjából):
+                    </p>
+                    <div className="bg-stone-900 text-amber-300 p-3 rounded-lg font-mono text-[11px] space-y-1">
+                      <div>VITE_SUPABASE_URL = "https://[a-te-projekted].supabase.co"</div>
+                      <div>VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6Ik..."</div>
+                    </div>
+                  </div>
+
+                  {/* Step 3: Redeploy */}
+                  <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-2">
+                    <strong className="text-stone-900 text-sm font-bold block">
+                      3. Lépés: Újratelepítés (Redeploy)
+                    </strong>
+                    <p className="text-stone-600 text-xs">
+                      A környezeti változók mentése után a Vercel <strong>Deployments</strong> fülén kattints a legutóbbi verziónál a három pontra (•••) és válaszd a <strong>Redeploy</strong> opciót. Kész!
+                    </p>
                   </div>
                 </div>
               )}
 
-              {/* TAB 8: SENT EMAILS / MAILBOX */}
+              {/* TAB 8: SENT EMAILS / MAILBOX & LIVE DIAGNOSTIC */}
               {activeTab === 'emails' && (
-                <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-50/80 border border-amber-200 p-4 rounded-xl text-xs">
+                <div className="space-y-5">
+                  
+                  {/* ORGANIZER MAILBOX HEADER */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#1A3626] text-white p-4 sm:p-5 rounded-2xl shadow-sm border border-stone-700">
                     <div>
-                      <span className="font-bold text-amber-950 block text-sm">
-                        Központi szervezői postafiók: ujbudazsibi@gmail.com
-                      </span>
-                      <p className="text-amber-900 mt-0.5">
-                        Minden beérkező asztalfoglalás, önkéntes jelentkezés, céges koncesszió és vélemény automatikusan rögzítésre és továbbításra kerül ide.
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-5 h-5 text-[#E7C286]" />
+                        <h4 className="font-bold text-white text-base font-serif">
+                          Központi szervezői postafiók: {ORGANIZER_EMAIL}
+                        </h4>
+                      </div>
+                      <p className="text-stone-300 text-xs mt-1 max-w-xl">
+                        Minden standfoglalás, önkéntes jelentkezés, céges megkeresés és vásári vélemény erre a Gmail címre érkezik be.
                       </p>
                     </div>
-                    <a
-                      href="https://mail.google.com/mail/u/0/#inbox"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-3.5 py-2 bg-stone-900 text-amber-300 font-bold rounded-lg shrink-0 flex items-center gap-1.5 hover:bg-stone-800 transition-colors cursor-pointer text-xs"
-                    >
-                      <Mail className="w-4 h-4" />
-                      <span>Gmail megnyitása</span>
-                    </a>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <a
+                        href="https://mail.google.com/mail/u/0/#inbox"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3.5 py-2 bg-[#E7C286] text-stone-950 font-bold rounded-xl shrink-0 flex items-center gap-1.5 hover:bg-[#d8b375] transition-colors cursor-pointer text-xs shadow-2xs"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        <span>Gmail megnyitása</span>
+                      </a>
+                    </div>
                   </div>
 
-                  {getSentEmails().length === 0 ? (
-                    <div className="p-8 text-center bg-white rounded-xl border border-stone-200 text-stone-500 text-xs">
-                      Még nem történt kiküldött értesítés ebben a munkamenetben. Próbálj ki egy standfoglalást vagy önkéntes jelentkezést a teszteléshez!
+                  {/* LIVE EMAIL TEST & FORM-SUBMIT ACTIVATION DIAGNOSTIC BOX */}
+                  <div className="bg-white rounded-2xl border border-amber-300 p-5 shadow-2xs space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Send className="w-4 h-4 text-emerald-800" />
+                          <h5 className="font-bold text-stone-900 text-sm font-serif">
+                            Élő kézbesítési teszt és FormSubmit aktiválás ellenőrzése
+                          </h5>
+                        </div>
+                        <p className="text-stone-600 text-xs mt-0.5">
+                          Kattints a teszt gombra, hogy azonnal megbizonyosodj az {ORGANIZER_EMAIL} címre érkező levelek állapotáról.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleRunEmailTest}
+                        disabled={isTestingEmail}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl cursor-pointer transition-colors shadow-2xs shrink-0 text-xs"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isTestingEmail ? 'animate-spin' : ''}`} />
+                        <span>{isTestingEmail ? 'Tesztlevél küldése...' : 'Teszt e-mail küldése most'}</span>
+                      </button>
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {getSentEmails().map((mail) => (
-                        <div
-                          key={mail.id}
-                          className="bg-white border border-stone-200 rounded-xl p-4 shadow-2xs space-y-2.5"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                                {mail.status}
-                              </span>
-                              <span className="font-bold text-xs text-stone-900">
-                                {mail.subject}
-                              </span>
-                            </div>
-                            <span className="text-[11px] font-mono text-stone-500">
-                              {mail.sentAt}
-                            </span>
-                          </div>
 
-                          <div className="text-xs text-stone-600 flex items-center gap-2">
-                            <span className="font-semibold text-stone-700">Címzett:</span>
-                            <span className="font-mono bg-stone-100 px-1.5 py-0.5 rounded text-[11px] text-stone-800">
-                              {mail.to}
-                            </span>
-                          </div>
+                    {/* Test result output */}
+                    {emailTestResult && (
+                      <div
+                        className={`p-4 rounded-xl border ${
+                          emailTestResult.requiresActivation
+                            ? 'bg-amber-50 border-amber-400 text-amber-950'
+                            : emailTestResult.success
+                            ? 'bg-emerald-50 border-emerald-400 text-emerald-950'
+                            : 'bg-red-50 border-red-400 text-red-950'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {emailTestResult.requiresActivation ? (
+                            <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                          ) : emailTestResult.success ? (
+                            <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+                          ) : (
+                            <ShieldAlert className="w-5 h-5 text-red-700 shrink-0 mt-0.5" />
+                          )}
+                          <div className="space-y-2 flex-1">
+                            <strong className="block text-sm font-bold">
+                              {emailTestResult.requiresActivation
+                                ? '⚠️ FONTOS: EGYSZERI FORM-AKTIVÁLÁS SZÜKSÉGES A GMAILBEN!'
+                                : emailTestResult.success
+                                ? '✅ A tesztüzenet sikeresen elküldve!'
+                                : 'Értesítési állapot:'}
+                            </strong>
+                            <p className="text-xs leading-relaxed">{emailTestResult.message}</p>
 
-                          <div
-                            className="bg-[#FAF8F5] p-3 rounded-lg border border-stone-200 text-xs text-stone-700 leading-relaxed font-sans max-h-48 overflow-y-auto"
-                            dangerouslySetInnerHTML={{ __html: mail.htmlContent }}
-                          />
-
-                          <div className="flex justify-end pt-1">
-                            <a
-                              href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(mail.to)}&su=${encodeURIComponent(mail.subject)}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-xs font-bold text-emerald-800 hover:underline flex items-center gap-1"
-                            >
-                              <span>Megnyitás / Új levél Gmailben →</span>
-                            </a>
+                            {/* Detailed steps if activation is pending */}
+                            {emailTestResult.requiresActivation && (
+                              <div className="p-3 bg-white/80 rounded-lg border border-amber-300 text-xs text-amber-950 space-y-2">
+                                <strong className="block font-bold">Miért nem láttad még az értesítéseket?</strong>
+                                <p>
+                                  A levéltovábbító szolgáltató (FormSubmit) spamszűrési biztonsági szabálya miatt az első használatkor egy jóváhagyó e-mailt küld a(z) <code>ujbudazsibi@gmail.com</code> címre. <strong>Amíg erre nem kattintasz rá egyszer, a szolgáltató visszatartja az üzeneteket!</strong>
+                                </p>
+                                <strong className="block font-bold pt-1">Teendő (mindössze 30 másodperc):</strong>
+                                <ol className="list-decimal pl-5 space-y-1">
+                                  <li>Nyisd meg a Gmailt a(z) <strong>ujbudazsibi@gmail.com</strong> fiókban.</li>
+                                  <li>Keresd a <em>"FormSubmit"</em> feladótól érkező levelet (nézd meg a <strong>Spam</strong> és <strong>Promóciók</strong> mappában is!).</li>
+                                  <li>Kattints a levélben lévő kék <strong>"Activate Form"</strong> gombra.</li>
+                                </ol>
+                                <div className="flex flex-wrap items-center gap-2 pt-2">
+                                  <a
+                                    href="https://mail.google.com/mail/u/0/#search/formsubmit"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-3 py-1.5 bg-amber-900 text-white font-bold rounded-lg text-xs hover:bg-amber-800 transition-colors inline-flex items-center gap-1"
+                                  >
+                                    <Search className="w-3.5 h-3.5" />
+                                    <span>FormSubmit keresése a Gmailben</span>
+                                  </a>
+                                  <a
+                                    href="https://mail.google.com/mail/u/0/#spam"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-3 py-1.5 bg-stone-200 text-stone-800 font-bold rounded-lg text-xs hover:bg-stone-300 transition-colors inline-flex items-center gap-1"
+                                  >
+                                    <span>Spam mappa megnyitása</span>
+                                  </a>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    )}
+
+                    {/* Helpful tips if no test has been clicked yet */}
+                    {!emailTestResult && (
+                      <div className="p-3.5 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-600 space-y-1">
+                        <strong className="block text-stone-800 font-bold">
+                          💡 Tudnivaló a foglalási e-mailekről:
+                        </strong>
+                        <p>
+                          A rendszer minden asztalfoglalásról, önkéntesről és lemondásról automatikusan elküldi az adatokat a Gmail postafiókodba. Ha nem látod az Elsődleges beérkező levelek között, ellenőrizd a <strong>Spam (Levélszemét)</strong> vagy <strong>Promóciók</strong> mappát, mert a Gmail automata szűrője előfordulhat, hogy oda sorolja be!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* SENT EMAILS LOG */}
+                  <div className="space-y-3">
+                    <h5 className="font-bold text-stone-900 text-sm font-serif">
+                      A rendszer által kiküldött legutóbbi értesítések naplója ({getSentEmails().length} db):
+                    </h5>
+
+                    {getSentEmails().length === 0 ? (
+                      <div className="p-8 text-center bg-white rounded-xl border border-stone-200 text-stone-500 text-xs">
+                        Még nem történt kiküldött értesítés ebben a böngészési munkamenetben. Kattints a fenti "Teszt e-mail küldése most" gombra!
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {getSentEmails().map((mail) => (
+                          <div
+                            key={mail.id}
+                            className="bg-white border border-stone-200 rounded-xl p-4 shadow-2xs space-y-2.5"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-2">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                    mail.status.includes('Aktiváció')
+                                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                      : 'bg-emerald-100 text-emerald-800'
+                                  }`}
+                                >
+                                  {mail.status}
+                                </span>
+                                <span className="font-bold text-xs text-stone-900">
+                                  {mail.subject}
+                                </span>
+                              </div>
+                              <span className="text-[11px] font-mono text-stone-500">
+                                {mail.sentAt}
+                              </span>
+                            </div>
+
+                            <div className="text-xs text-stone-600 flex flex-wrap items-center gap-2">
+                              <span className="font-semibold text-stone-700">Címzett:</span>
+                              <span className="font-mono bg-stone-100 px-1.5 py-0.5 rounded text-[11px] text-stone-800">
+                                {mail.to}
+                              </span>
+                              {mail.responseDetails && (
+                                <span className="text-[11px] text-stone-500 italic">
+                                  ({mail.responseDetails})
+                                </span>
+                              )}
+                            </div>
+
+                            <div
+                              className="bg-[#FAF8F5] p-3 rounded-lg border border-stone-200 text-xs text-stone-700 leading-relaxed font-sans max-h-48 overflow-y-auto"
+                              dangerouslySetInnerHTML={{ __html: mail.htmlContent }}
+                            />
+
+                            <div className="flex justify-end pt-1">
+                              <a
+                                href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+                                  mail.to
+                                )}&su=${encodeURIComponent(mail.subject)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs font-bold text-emerald-800 hover:underline flex items-center gap-1"
+                              >
+                                <span>Megnyitás / Új levél Gmailben →</span>
+                              </a>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
