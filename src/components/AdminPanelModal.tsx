@@ -1501,19 +1501,11 @@ Szolgáltató: Resend API / FormSubmit élő híd`,
 
                   <div className="space-y-2 pt-2 border-t border-stone-100">
                     <strong className="block text-stone-900 text-sm font-serif">
-                      3. E-mail küldés (Resend & FormSubmit):
+                      3. E-mail küldés (FormSubmit):
                     </strong>
                     <p>
-                      A rendszer kétcsatornás, automatikus kézbesítéssel működik:
+                      A rendszer közvetlenül a FormSubmit szolgáltatáson keresztül küldi ki a foglalási, önkéntes és koncessziós értesítéseket az <strong>ujbudazsibi@gmail.com</strong> központi címre, valamint a jelentkező e-mail címére. Nem igényel külön konfigurációt, a weboldalon beküldött űrlapok azonnal megérkeznek.
                     </p>
-                    <ul className="list-disc pl-5 space-y-1.5">
-                      <li>
-                        <strong>FormSubmit (Alapértelmezett, azonnal aktív):</strong> Már aktiválva van a <code>ujbudazsibi@gmail.com</code> címre javított <code>email</code> és <code>_cc</code> mezőkkel, így a foglalások és visszaigazolások azonnal elmennek.
-                      </li>
-                      <li>
-                        <strong>Resend (Ajánlott prémium közvetlen kézbesítés):</strong> Regisztrálj a <a href="https://resend.com" target="_blank" rel="noreferrer" className="underline font-bold text-emerald-800">resend.com</a> oldalon, hozz létre egy ingyenes API kulcsot, majd a Vercel <em>Settings → Environment Variables</em> menüjében add hozzá a <code className="font-mono bg-stone-100 px-1.5 py-0.5 rounded text-stone-900 font-bold">RESEND_API_KEY</code> változót (értéke pl: <code>re_123456...</code>). Ezzel a Vercel szerveroldali funkciója azonnal a Resend-en keresztül továbbítja a leveleket!
-                      </li>
-                    </ul>
                   </div>
                 </div>
               )}
@@ -1527,10 +1519,10 @@ Szolgáltató: Resend API / FormSubmit élő híd`,
                       <div>
                         <h4 className="font-extrabold text-stone-900 text-sm font-serif flex items-center gap-2">
                           <Mail className="w-4 h-4 text-emerald-800" />
-                          <span>E-mail kézbesítő rendszer állapota</span>
+                          <span>FormSubmit e-mail kézbesítő rendszer</span>
                         </h4>
                         <p className="text-xs text-stone-600 mt-0.5">
-                          Központi címzett: <span className="font-mono font-bold text-stone-800">ujbudazsibi@gmail.com</span> és a jelentkező e-mail címe
+                          Központi szervezői postafiók: <span className="font-mono font-bold text-stone-800">ujbudazsibi@gmail.com</span>
                         </p>
                       </div>
 
@@ -1557,37 +1549,20 @@ Szolgáltató: Resend API / FormSubmit élő híd`,
                       </div>
                     </div>
 
-                    {/* Active Services Overview */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-emerald-950 flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
-                            <span>Resend & Serverless API</span>
-                          </span>
-                          <span className="text-[10px] bg-emerald-200 text-emerald-900 font-bold px-1.5 py-0.5 rounded">
-                            Vercel /api/send-email
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-emerald-900 leading-relaxed">
-                          Magyar nyelvű, prémium HTML dizájn. A Vercelen a <code className="font-mono bg-white/70 px-1 py-0.5 rounded">RESEND_API_KEY</code> változóval közvetlenül és azonnal kézbesít.
-                        </p>
+                    {/* Active FormSubmit Overview */}
+                    <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3.5 space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-amber-950 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                          <span>FormSubmit Élő Levélküldő Híd</span>
+                        </span>
+                        <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded">
+                          Aktiválva
+                        </span>
                       </div>
-
-                      <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-amber-950 flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-amber-600"></span>
-                            <span>FormSubmit Élő Továbbító</span>
-                          </span>
-                          <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-1.5 py-0.5 rounded">
-                            Aktiválva
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-amber-900 leading-relaxed">
-                          Javított <code className="font-mono bg-white/70 px-1 py-0.5 rounded">email</code> és <code className="font-mono bg-white/70 px-1 py-0.5 rounded">_cc</code> mezőkkel: mind a szervezőnek, mind a jelentkezőnek azonnal kiküldi a visszaigazolást.
-                        </p>
-                      </div>
+                      <p className="text-[11px] text-amber-900 leading-relaxed">
+                        Minden jelentkezés és asztalfoglalás közvetlenül a FormSubmit AJAX végponton keresztül kerül kézbesítésre a szervezőnek (<code className="font-mono font-bold bg-white/70 px-1 py-0.5 rounded">ujbudazsibi@gmail.com</code>) és a jelentkezőnek másolatban.
+                      </p>
                     </div>
 
                     {/* Send Test Email Action */}
