@@ -42,17 +42,6 @@ import { GreenBoxModal } from './components/GreenBoxModal';
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { ScrollToTopButton } from './components/ScrollToTopButton';
 import {
-  saveBookingToSupabase,
-  fetchBookingsFromSupabase,
-  cancelBookingInSupabase,
-  saveVolunteerToSupabase,
-  saveCommercialToSupabase,
-  saveReviewToSupabase,
-  saveNotificationToSupabase,
-  fetchNotificationFromSupabase,
-  SUPABASE_CONFIG,
-} from './lib/supabase';
-import {
   Calendar,
   MapPin,
   Clock,
@@ -193,54 +182,6 @@ export default function App() {
     };
   }, []);
 
-  // Sync with Supabase remote database on mount (if configured)
-  useEffect(() => {
-    if (SUPABASE_CONFIG.isConfigured) {
-      // 1. Sync remote bookings with table state
-      fetchBookingsFromSupabase().then((remoteBookings) => {
-        if (remoteBookings && remoteBookings.length > 0) {
-          setLocations((prevLocations) =>
-            prevLocations.map((loc) => ({
-              ...loc,
-              tables: loc.tables.map((tbl) => {
-                const remote = remoteBookings.find(
-                  (rb) => rb.locationId === loc.id && rb.tableId === tbl.id
-                );
-                if (remote) {
-                  return {
-                    ...tbl,
-                    status: 'reserved',
-                    reservedBy: {
-                      name: remote.sellerName,
-                      email: remote.email,
-                      phone: remote.phone,
-                      districtAddress: remote.streetAddress,
-                      postalCode: remote.postalCode,
-                      isImmediateNeighbor: remote.isImmediateNeighbor,
-                      categories: remote.categories,
-                      note: remote.itemsDescription,
-                      bookingRef: remote.bookingId,
-                      bookedAt: remote.createdAt,
-                      amountPaid: remote.totalPaid,
-                    },
-                  };
-                }
-                return tbl;
-              }),
-            }))
-          );
-        }
-      });
-
-      // 2. Sync site notification
-      fetchNotificationFromSupabase().then((remoteNotif) => {
-        if (typeof remoteNotif === 'string' && remoteNotif.trim()) {
-          setSiteNotification(remoteNotif.trim());
-        }
-      });
-    }
-  }, []);
-
   // Persist state changes
   useEffect(() => {
     localStorage.setItem('ujbuda_locations_v3', JSON.stringify(locations));
@@ -333,25 +274,11 @@ export default function App() {
       })
     );
 
-    // Save to Supabase remote database if configured
-    saveBookingToSupabase(booking).catch((err) => {
-      console.warn('Supabase booking sync notice:', err);
-    });
-
     showToast(`Stand #${booking.tableId} sikeresen lefoglalva! Visszaigazolás elküldve: ${booking.email} és ujbudazsibi@gmail.com`);
   };
 
   // ADMIN ACTION: Cancel booking & free up table (enforced by 8-day rule in AdminPanelModal)
   const handleCancelBooking = (locationId: string, tableId: number, sellerName: string) => {
-    // Find table bookingRef to cancel in remote Supabase
-    const locObj = locations.find((l) => l.id === locationId);
-    const tableObj = locObj?.tables.find((t) => t.id === tableId);
-    if (tableObj?.reservedBy?.bookingRef) {
-      cancelBookingInSupabase(tableObj.reservedBy.bookingRef).catch((err) => {
-        console.warn('Supabase cancellation sync notice:', err);
-      });
-    }
-
     setLocations((prevLocations) =>
       prevLocations.map((loc) => {
         if (loc.id === locationId) {
@@ -416,7 +343,6 @@ export default function App() {
   // Commercial vendor handlers
   const handleSubmitCommercial = (newVendor: CommercialVendorBooking) => {
     setCommercialVendors((prev) => [newVendor, ...prev]);
-    saveCommercialToSupabase(newVendor).catch(() => {});
     showToast(`Vállalkozói jelentkezés rögzítve (${newVendor.companyName}). Értesítés elküldve a szervezőknek.`);
   };
 
@@ -464,7 +390,6 @@ export default function App() {
   // Review handlers & moderation
   const handleSubmitReview = (newReview: MarketReview) => {
     setReviews((prev) => [newReview, ...prev]);
-    saveReviewToSupabase(newReview).catch(() => {});
     showToast('Köszönjük! Anonim véleményed rögzítettük a szervezőség számára.');
   };
 
@@ -490,7 +415,6 @@ export default function App() {
   // Volunteer handlers
   const handleSubmitVolunteer = (newVolunteer: VolunteerApplication) => {
     setVolunteers((prev) => [newVolunteer, ...prev]);
-    saveVolunteerToSupabase(newVolunteer).catch(() => {});
     showToast(`Köszönjük, ${newVolunteer.fullName}! Jelentkezésed rögzítve és elküldve (ujbudazsibi@gmail.com).`);
   };
 
@@ -538,7 +462,6 @@ export default function App() {
   const handleSaveSiteNotification = (text: string) => {
     const cleanText = text.slice(0, 200).trim();
     setSiteNotification(cleanText);
-    saveNotificationToSupabase(cleanText).catch(() => {});
     if (cleanText) {
       localStorage.setItem('ujbuda_site_notification_v1', cleanText);
       showToast('Értesítés közzétéve a weboldal tetején!');
@@ -550,7 +473,6 @@ export default function App() {
 
   const handleDeleteSiteNotification = () => {
     setSiteNotification('');
-    saveNotificationToSupabase('').catch(() => {});
     localStorage.removeItem('ujbuda_site_notification_v1');
     showToast('Értesítés törölve, a sáv eltűnt a weboldalról.');
   };

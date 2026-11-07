@@ -11,7 +11,7 @@ import {
   formatGdprName,
 } from '../types/market';
 import { CATEGORIES, VOLUNTEER_TASKS } from '../data/mockData';
-import { getSentEmails, sendEmailNotification } from '../lib/supabase';
+import { getSentEmails } from '../lib/supabase';
 import {
   X,
   ShieldAlert,
@@ -48,7 +48,6 @@ import {
   RefreshCw,
   Bell,
   Megaphone,
-  Send,
 } from 'lucide-react';
 
 interface AdminPanelModalProps {
@@ -134,43 +133,6 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     sheetCount: number;
     fileName: string;
   } | null>(null);
-
-  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
-  const [testEmailStatus, setTestEmailStatus] = useState<string | null>(null);
-  const [emailsList, setEmailsList] = useState(() => getSentEmails());
-
-  const handleSendTestEmail = async () => {
-    setIsSendingTestEmail(true);
-    setTestEmailStatus(null);
-    try {
-      const res = await sendEmailNotification({
-        to: 'ujbudazsibi@gmail.com',
-        subject: `[Újbudazsibi Rendszerpróba] Teszt e-mail sikeres kézbesítése (${new Date().toLocaleTimeString('hu-HU')})`,
-        applicantName: 'Újbudazsibi Rendszergazda',
-        applicantEmail: 'ujbudazsibi@gmail.com',
-        applicantPhone: '+36 30 123 4567',
-        standText: 'Központi Rendszer Stand #0',
-        locationText: 'Központi Vásárszervezés — Teszt futtatás',
-        categoryText: 'Rendszerellenőrzés & Levélküldés',
-        readableDetails: `Központi rendszerpróba az adminisztrációs felületről.
-Címzett: ujbudazsibi@gmail.com
-Dátum: ${new Date().toLocaleString('hu-HU')}
-Szolgáltató: Resend API / FormSubmit élő híd`,
-        htmlContent: `
-          <h3 style="color: #1a3626; font-family: serif;">Újbudazsibi Rendszer Tesztértesítő</h3>
-          <p>Ez a levél igazolja, hogy az e-mail küldő szolgáltatás működik és sikeresen átadta az üzenetet a kézbesítő hálózatnak.</p>
-          <p><strong>Célcím:</strong> ujbudazsibi@gmail.com</p>
-          <p><strong>Kiküldés ideje:</strong> ${new Date().toLocaleString('hu-HU')}</p>
-        `,
-      });
-      setTestEmailStatus(res.message);
-      setEmailsList(getSentEmails());
-    } catch (err: any) {
-      setTestEmailStatus(`Hiba történt: ${err?.message || 'Nem sikerült az e-mail továbbítása'}`);
-    } finally {
-      setIsSendingTestEmail(false);
-    }
-  };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1498,114 +1460,39 @@ Szolgáltató: Resend API / FormSubmit élő híd`,
                       </li>
                     </ol>
                   </div>
-
-                  <div className="space-y-2 pt-2 border-t border-stone-100">
-                    <strong className="block text-stone-900 text-sm font-serif">
-                      3. E-mail küldés (FormSubmit):
-                    </strong>
-                    <p>
-                      A rendszer közvetlenül a FormSubmit szolgáltatáson keresztül küldi ki a foglalási, önkéntes és koncessziós értesítéseket az <strong>ujbudazsibi@gmail.com</strong> központi címre, valamint a jelentkező e-mail címére. Nem igényel külön konfigurációt, a weboldalon beküldött űrlapok azonnal megérkeznek.
-                    </p>
-                  </div>
                 </div>
               )}
 
               {/* TAB 8: SENT EMAILS / MAILBOX */}
               {activeTab === 'emails' && (
                 <div className="space-y-4">
-                  {/* Delivery System Status & Quick Actions */}
-                  <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-3">
-                      <div>
-                        <h4 className="font-extrabold text-stone-900 text-sm font-serif flex items-center gap-2">
-                          <Mail className="w-4 h-4 text-emerald-800" />
-                          <span>FormSubmit e-mail kézbesítő rendszer</span>
-                        </h4>
-                        <p className="text-xs text-stone-600 mt-0.5">
-                          Központi szervezői postafiók: <span className="font-mono font-bold text-stone-800">ujbudazsibi@gmail.com</span>
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setEmailsList(getSentEmails())}
-                          className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
-                          title="Postafiók frissítése"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          <span>Frissítés</span>
-                        </button>
-
-                        <a
-                          href="https://mail.google.com/mail/u/0/#inbox"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3.5 py-1.5 bg-stone-900 text-amber-300 font-bold rounded-lg flex items-center gap-1.5 hover:bg-stone-800 transition-colors cursor-pointer text-xs"
-                        >
-                          <Mail className="w-3.5 h-3.5" />
-                          <span>Gmail megnyitása</span>
-                        </a>
-                      </div>
-                    </div>
-
-                    {/* Active FormSubmit Overview */}
-                    <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3.5 space-y-1.5 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-amber-950 flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
-                          <span>FormSubmit Élő Levélküldő Híd</span>
-                        </span>
-                        <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded">
-                          Aktiválva
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-amber-900 leading-relaxed">
-                        Minden jelentkezés és asztalfoglalás közvetlenül a FormSubmit AJAX végponton keresztül kerül kézbesítésre a szervezőnek (<code className="font-mono font-bold bg-white/70 px-1 py-0.5 rounded">ujbudazsibi@gmail.com</code>) és a jelentkezőnek másolatban.
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-50/80 border border-amber-200 p-4 rounded-xl text-xs">
+                    <div>
+                      <span className="font-bold text-amber-950 block text-sm">
+                        Központi szervezői postafiók: ujbudazsibi@gmail.com
+                      </span>
+                      <p className="text-amber-900 mt-0.5">
+                        Minden beérkező asztalfoglalás, önkéntes jelentkezés, céges koncesszió és vélemény automatikusan rögzítésre és továbbításra kerül ide.
                       </p>
                     </div>
-
-                    {/* Send Test Email Action */}
-                    <div className="pt-2 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="text-xs text-stone-600">
-                        {testEmailStatus ? (
-                          <div className="flex items-center gap-2 text-emerald-800 font-semibold bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
-                            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                            <span>{testEmailStatus}</span>
-                          </div>
-                        ) : (
-                          <span>Kattints az alábbi gombra egy valós teszt levél kiküldéséhez:</span>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleSendTestEmail}
-                        disabled={isSendingTestEmail}
-                        className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
-                      >
-                        {isSendingTestEmail ? (
-                          <>
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            <span>Küldés folyamatban...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-3.5 h-3.5" />
-                            <span>Teszt e-mail küldése (ujbudazsibi@gmail.com)</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
+                    <a
+                      href="https://mail.google.com/mail/u/0/#inbox"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3.5 py-2 bg-stone-900 text-amber-300 font-bold rounded-lg shrink-0 flex items-center gap-1.5 hover:bg-stone-800 transition-colors cursor-pointer text-xs"
+                    >
+                      <Mail className="w-4 h-4" />
+                      <span>Gmail megnyitása</span>
+                    </a>
                   </div>
 
-                  {emailsList.length === 0 ? (
+                  {getSentEmails().length === 0 ? (
                     <div className="p-8 text-center bg-white rounded-xl border border-stone-200 text-stone-500 text-xs">
-                      Még nem történt kiküldött értesítés ebben a munkamenetben. Kattints a fenti "Teszt e-mail küldése" gombra a kipróbáláshoz!
+                      Még nem történt kiküldött értesítés ebben a munkamenetben. Próbálj ki egy standfoglalást vagy önkéntes jelentkezést a teszteléshez!
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {emailsList.map((mail) => (
+                      {getSentEmails().map((mail) => (
                         <div
                           key={mail.id}
                           className="bg-white border border-stone-200 rounded-xl p-4 shadow-2xs space-y-2.5"
