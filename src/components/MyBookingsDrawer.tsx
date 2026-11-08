@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 import { QrCodeDisplay } from './QrCodeDisplay';
-import { printPassElement, downloadPassAsPdf } from '../utils/printPass';
+import { printPassDirect, downloadPassAsPdfDirect } from '../utils/printPass';
 
 interface MyBookingsDrawerProps {
   isOpen: boolean;
@@ -35,10 +35,42 @@ export const MyBookingsDrawer: React.FC<MyBookingsDrawerProps> = ({
 
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  const handleDownloadSinglePdf = async (bookingId: string) => {
-    setDownloadingId(bookingId);
-    await downloadPassAsPdf(`my-pass-${bookingId}`, bookingId);
+  const handleDownloadSinglePdf = async (b: ConfirmedBooking) => {
+    setDownloadingId(b.bookingId);
+    await downloadPassAsPdfDirect({
+      bookingId: b.bookingId,
+      tableId: b.tableId,
+      sellerName: b.sellerName,
+      email: b.email,
+      phone: b.phone,
+      streetAddress: b.streetAddress,
+      postalCode: b.postalCode,
+      locationName: b.locationName,
+      streetName: b.streetName,
+      weekendDates: b.weekendDates,
+      totalPaid: b.totalPaid,
+      categories: b.categories,
+      itemsDescription: b.itemsDescription,
+    });
     setDownloadingId(null);
+  };
+
+  const handlePrintSingle = (b: ConfirmedBooking) => {
+    printPassDirect({
+      bookingId: b.bookingId,
+      tableId: b.tableId,
+      sellerName: b.sellerName,
+      email: b.email,
+      phone: b.phone,
+      streetAddress: b.streetAddress,
+      postalCode: b.postalCode,
+      locationName: b.locationName,
+      streetName: b.streetName,
+      weekendDates: b.weekendDates,
+      totalPaid: b.totalPaid,
+      categories: b.categories,
+      itemsDescription: b.itemsDescription,
+    });
   };
 
   return (
@@ -127,6 +159,14 @@ export const MyBookingsDrawer: React.FC<MyBookingsDrawerProps> = ({
                       tableId={b.tableId}
                       sellerName={b.sellerName}
                       locationName={b.locationName}
+                      email={b.email}
+                      phone={b.phone}
+                      streetAddress={b.streetAddress}
+                      postalCode={b.postalCode}
+                      weekendDates={b.weekendDates}
+                      totalPaid={b.totalPaid}
+                      categories={b.categories}
+                      itemsDescription={b.itemsDescription}
                       size={72}
                     />
                     <span className="text-[9px] font-mono font-bold text-stone-600 mt-1">
@@ -163,7 +203,7 @@ export const MyBookingsDrawer: React.FC<MyBookingsDrawerProps> = ({
                   <button
                     type="button"
                     disabled={downloadingId === b.bookingId}
-                    onClick={() => handleDownloadSinglePdf(b.bookingId)}
+                    onClick={() => handleDownloadSinglePdf(b)}
                     className="flex items-center justify-center gap-1.5 py-2.5 bg-[#FAF7F2] hover:bg-[#EAE4D7] border border-stone-300 rounded-xl text-xs font-bold text-stone-800 transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
                   >
                     <FileDown className="w-3.5 h-3.5 text-emerald-800" />
@@ -172,7 +212,7 @@ export const MyBookingsDrawer: React.FC<MyBookingsDrawerProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => printPassElement(`my-pass-${b.bookingId}`)}
+                    onClick={() => handlePrintSingle(b)}
                     className="flex items-center justify-center gap-1.5 py-2.5 bg-[#FAF7F2] hover:bg-[#EAE4D7] border border-stone-300 rounded-xl text-xs font-bold text-stone-800 transition-colors cursor-pointer shadow-2xs"
                   >
                     <Printer className="w-3.5 h-3.5 text-emerald-800" />

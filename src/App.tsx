@@ -42,6 +42,7 @@ import { ReviewsSection } from './components/ReviewsSection';
 import { GreenBoxModal } from './components/GreenBoxModal';
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { ScrollToTopButton } from './components/ScrollToTopButton';
+import { VerificationPageView, VerificationPageData } from './components/VerificationPageView';
 import {
   Calendar,
   MapPin,
@@ -169,24 +170,83 @@ export default function App() {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // URL route check for /admin or #admin
+  const [verificationData, setVerificationData] = useState<VerificationPageData | null>(null);
+  const [isVerificationOpen, setIsVerificationOpen] = useState(false);
+
+  // URL route check for /admin or #admin, and /verify or #verify (QR Code scanner)
   useEffect(() => {
-    const checkAdminRoute = () => {
+    const checkRoutes = () => {
+      // 1. Admin route
       const isPathAdmin = window.location.pathname === '/admin' || window.location.pathname === '/admin/';
       const isHashAdmin = window.location.hash === '#admin';
       if (isPathAdmin || isHashAdmin) {
         setIsAdminOpen(true);
       }
+
+      // 2. Verification route for QR Code scanning
+      const hash = window.location.hash || '';
+      const search = window.location.search || '';
+      const pathname = window.location.pathname || '';
+
+      const isVerifyRoute =
+        hash.includes('verify') ||
+        pathname.includes('/verify') ||
+        search.includes('verify') ||
+        search.includes('id=UJB-') ||
+        hash.includes('id=UJB-');
+
+      if (isVerifyRoute) {
+        let queryString = search;
+        if (!queryString && hash.includes('?')) {
+          queryString = hash.slice(hash.indexOf('?'));
+        }
+        const params = new URLSearchParams(queryString);
+        const bookingId = params.get('id') || params.get('ref') || 'UJB-STAND';
+        const tableId = params.get('stand') || params.get('table') || '1';
+        const sellerName = params.get('nev') || params.get('name') || '';
+        const email = params.get('email') || '';
+        const phone = params.get('tel') || params.get('phone') || '';
+        const streetAddress = params.get('cim') || params.get('address') || '';
+        const postalCode = params.get('irsz') || params.get('zip') || '';
+        const locationName = params.get('hely') || params.get('loc') || 'Újbudazsibi';
+        const streetName = params.get('utca') || '';
+        const weekendDates = params.get('datum') || '';
+        const totalPaid = params.get('ar') || '4 050';
+        const rawKat = params.get('kat') || '';
+        const categories = rawKat ? rawKat.split(',').map((s) => s.trim()) : undefined;
+        const itemsDescription = params.get('leiras') || params.get('desc') || '';
+
+        // Check if matching booking exists in myBookings
+        const existing = myBookings.find((b) => b.bookingId === bookingId);
+
+        setVerificationData({
+          bookingId: existing?.bookingId || bookingId,
+          tableId: existing?.tableId || tableId,
+          sellerName: existing?.sellerName || sellerName || 'Újbudai Regisztrált Árus',
+          email: existing?.email || email,
+          phone: existing?.phone || phone,
+          streetAddress: existing?.streetAddress || streetAddress,
+          postalCode: existing?.postalCode || postalCode,
+          locationName: existing?.locationName || locationName,
+          streetName: existing?.streetName || streetName,
+          weekendDates: existing?.weekendDates || weekendDates,
+          totalPaid: existing?.totalPaid || totalPaid,
+          categories: existing?.categories || categories,
+          itemsDescription: existing?.itemsDescription || itemsDescription,
+          isImmediateNeighbor: existing?.isImmediateNeighbor,
+        });
+        setIsVerificationOpen(true);
+      }
     };
 
-    checkAdminRoute();
-    window.addEventListener('hashchange', checkAdminRoute);
-    window.addEventListener('popstate', checkAdminRoute);
+    checkRoutes();
+    window.addEventListener('hashchange', checkRoutes);
+    window.addEventListener('popstate', checkRoutes);
     return () => {
-      window.removeEventListener('hashchange', checkAdminRoute);
-      window.removeEventListener('popstate', checkAdminRoute);
+      window.removeEventListener('hashchange', checkRoutes);
+      window.removeEventListener('popstate', checkRoutes);
     };
-  }, []);
+  }, [myBookings]);
 
   // Persist state changes
   useEffect(() => {
@@ -490,6 +550,31 @@ export default function App() {
     }
   };
 
+  const handleCloseVerification = () => {
+    setIsVerificationOpen(false);
+    if (window.location.hash.includes('verify') || window.location.search.includes('verify')) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  };
+
+  const handleLocateTableFromVerification = (locationId: string, tableId: number) => {
+    setIsVerificationOpen(false);
+    setSelectedLocationId(locationId);
+    setActiveTab('map');
+    const loc = locations.find((l) => l.id === locationId);
+    if (loc) {
+      const tbl = loc.tables.find((t) => t.id === tableId);
+      if (tbl) {
+        setSelectedTable(tbl);
+        setIsTableDetailOpen(true);
+      }
+    }
+    const mapEl = document.getElementById('street-plan-section');
+    if (mapEl) {
+      mapEl.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const handleSaveSiteNotification = (text: string) => {
     const cleanText = text.slice(0, 200).trim();
     setSiteNotification(cleanText);
@@ -508,6 +593,18 @@ export default function App() {
     localStorage.setItem('ujbuda_site_notification_v1', '');
     showToast('Értesítés törölve, a piros sáv eltűnt a weboldalról.');
   };
+
+  // Dedicated Verification Page View (when scanned via QR code)
+  if (isVerificationOpen && verificationData) {
+    return (
+      <VerificationPageView
+        data={verificationData}
+        locations={locations}
+        onBackToHome={handleCloseVerification}
+        onLocateTable={handleLocateTableFromVerification}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#FAF7F2] text-stone-900 flex flex-col font-sans selection:bg-[#E8D4B8]">

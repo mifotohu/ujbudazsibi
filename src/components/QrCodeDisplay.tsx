@@ -7,6 +7,14 @@ interface QrCodeDisplayProps {
   tableId: number | string;
   sellerName?: string;
   locationName?: string;
+  email?: string;
+  phone?: string;
+  streetAddress?: string;
+  postalCode?: string;
+  weekendDates?: string;
+  totalPaid?: number | string;
+  categories?: string[];
+  itemsDescription?: string;
   size?: number; // rendered size in pixels, e.g. 100, 112, 128
   className?: string;
 }
@@ -16,16 +24,41 @@ export const QrCodeDisplay: React.FC<QrCodeDisplayProps> = ({
   tableId,
   sellerName = '',
   locationName = '',
+  email = '',
+  phone = '',
+  streetAddress = '',
+  postalCode = '',
+  weekendDates = '',
+  totalPaid = '',
+  categories = [],
+  itemsDescription = '',
   size = 112,
   className = '',
 }) => {
   const [dataUrl, setDataUrl] = useState<string>('');
   const [hasError, setHasError] = useState(false);
 
-  // Standard web verification URL that any phone camera (iOS, Android, Brave, Google Lens) instantly recognizes
-  const verificationUrl = `https://www.ujbudazsibi.hu/verify?id=${encodeURIComponent(
-    bookingId
-  )}&stand=${encodeURIComponent(tableId)}&nev=${encodeURIComponent(sellerName)}`;
+  // Standard web verification URL that any phone camera (iOS, Android, Brave, Google Lens) instantly opens
+  const origin = typeof window !== 'undefined' && window.location.origin
+    ? window.location.origin
+    : 'https://www.ujbudazsibi.hu';
+
+  const params = new URLSearchParams({
+    id: String(bookingId || ''),
+    stand: String(tableId || ''),
+    nev: String(sellerName || ''),
+    email: String(email || ''),
+    tel: String(phone || ''),
+    cim: String(streetAddress || ''),
+    irsz: String(postalCode || ''),
+    hely: String(locationName || ''),
+    datum: String(weekendDates || ''),
+    ar: String(totalPaid || ''),
+    kat: Array.isArray(categories) ? categories.join(', ') : String(categories || ''),
+    leiras: String(itemsDescription || ''),
+  });
+
+  const verificationUrl = `${origin}/#verify?${params.toString()}`;
 
   useEffect(() => {
     let isMounted = true;

@@ -4,7 +4,7 @@ import { TableData, LocationData, BookingFormState, ConfirmedBooking } from '../
 import { CATEGORIES } from '../data/mockData';
 import { sendEmailNotification } from '../lib/supabase';
 import { QrCodeDisplay } from './QrCodeDisplay';
-import { printPassElement, downloadPassAsPdf } from '../utils/printPass';
+import { printPassDirect, downloadPassAsPdfDirect, buildVerificationUrl } from '../utils/printPass';
 import {
   X,
   CreditCard,
@@ -220,14 +220,21 @@ Lemondási szabályzat: Vásár előtt legkésőbb 8 nappal mondható le díjmen
   // Generate genuine high-contrast QR code readable by any smartphone camera
   useEffect(() => {
     if (step === 'success' && confirmedData) {
-      const qrPayload = `ÚJBUDAZSIBI HIVATALOS ÁRUSI ENGEDÉLY
-Stand: #${confirmedData.tableId}
-Árus: ${confirmedData.sellerName}
-Helyszín: ${confirmedData.locationName} (${confirmedData.streetName})
-Időpont: ${confirmedData.weekendDates}
-Azonosító: ${confirmedData.bookingId}
-Díj: ${confirmedData.totalPaid.toLocaleString('hu-HU')} Ft (Rendezve)
-Hitelesítés: https://www.ujbudazsibi.hu/verify/${confirmedData.bookingId}`;
+      const qrPayload = buildVerificationUrl({
+        bookingId: confirmedData.bookingId,
+        tableId: confirmedData.tableId,
+        sellerName: confirmedData.sellerName,
+        email: confirmedData.email,
+        phone: confirmedData.phone,
+        streetAddress: confirmedData.streetAddress,
+        postalCode: confirmedData.postalCode,
+        locationName: confirmedData.locationName,
+        streetName: confirmedData.streetName,
+        weekendDates: confirmedData.weekendDates,
+        totalPaid: confirmedData.totalPaid,
+        categories: confirmedData.categories,
+        itemsDescription: confirmedData.itemsDescription,
+      });
 
       QRCode.toDataURL(qrPayload, {
         width: 280,
@@ -250,12 +257,41 @@ Hitelesítés: https://www.ujbudazsibi.hu/verify/${confirmedData.bookingId}`;
   const handleDownloadPdf = async () => {
     if (!confirmedData) return;
     setIsDownloadingPdf(true);
-    await downloadPassAsPdf('printable-pass', confirmedData.bookingId);
+    await downloadPassAsPdfDirect({
+      bookingId: confirmedData.bookingId,
+      tableId: confirmedData.tableId,
+      sellerName: confirmedData.sellerName,
+      email: confirmedData.email,
+      phone: confirmedData.phone,
+      streetAddress: confirmedData.streetAddress,
+      postalCode: confirmedData.postalCode,
+      locationName: confirmedData.locationName,
+      streetName: confirmedData.streetName,
+      weekendDates: confirmedData.weekendDates,
+      totalPaid: confirmedData.totalPaid,
+      categories: confirmedData.categories,
+      itemsDescription: confirmedData.itemsDescription,
+    });
     setIsDownloadingPdf(false);
   };
 
   const handlePrint = () => {
-    printPassElement('printable-pass');
+    if (!confirmedData) return;
+    printPassDirect({
+      bookingId: confirmedData.bookingId,
+      tableId: confirmedData.tableId,
+      sellerName: confirmedData.sellerName,
+      email: confirmedData.email,
+      phone: confirmedData.phone,
+      streetAddress: confirmedData.streetAddress,
+      postalCode: confirmedData.postalCode,
+      locationName: confirmedData.locationName,
+      streetName: confirmedData.streetName,
+      weekendDates: confirmedData.weekendDates,
+      totalPaid: confirmedData.totalPaid,
+      categories: confirmedData.categories,
+      itemsDescription: confirmedData.itemsDescription,
+    });
   };
 
   return (
@@ -707,6 +743,14 @@ Hitelesítés: https://www.ujbudazsibi.hu/verify/${confirmedData.bookingId}`;
                     tableId={confirmedData.tableId}
                     sellerName={confirmedData.sellerName}
                     locationName={confirmedData.locationName}
+                    email={confirmedData.email}
+                    phone={confirmedData.phone}
+                    streetAddress={confirmedData.streetAddress}
+                    postalCode={confirmedData.postalCode}
+                    weekendDates={confirmedData.weekendDates}
+                    totalPaid={confirmedData.totalPaid}
+                    categories={confirmedData.categories}
+                    itemsDescription={confirmedData.itemsDescription}
                     size={84}
                   />
                   <span className="text-[9px] font-mono font-semibold text-stone-500 mt-1 tracking-tight">
