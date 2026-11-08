@@ -512,3 +512,6 @@ export const INITIAL_REVIEWS: MarketReview[] = [
     submittedAt: '2026-10-30',
   },
 ];
+
+// Default global announcement displayed in the top red bar for all visitors
+export const DEFAULT_SITE_NOTIFICATION = '📢 Figyelem: Már csak néhány szabad stand maradt a májusi bolhapiaci hétvégékre! Foglalj időben a 10%-os újbudai lakossági kedvezménnyel.';

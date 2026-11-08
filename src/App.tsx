@@ -10,6 +10,7 @@ import {
   INITIAL_COMMERCIAL_VENDORS,
   INITIAL_MUSICIANS,
   INITIAL_REVIEWS,
+  DEFAULT_SITE_NOTIFICATION,
 } from './data/mockData';
 import {
   LocationData,
@@ -136,8 +137,13 @@ export default function App() {
   });
 
   const [siteNotification, setSiteNotification] = useState<string>(() => {
-    return localStorage.getItem('ujbuda_site_notification_v1') || '';
+    const saved = localStorage.getItem('ujbuda_site_notification_v1');
+    if (saved !== null) {
+      return saved;
+    }
+    return DEFAULT_SITE_NOTIFICATION;
   });
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
 
   const [selectedLocationId, setSelectedLocationId] = useState<string>('bartok');
   const [activeTab, setActiveTab] = useState<string>('map');
@@ -207,6 +213,23 @@ export default function App() {
     localStorage.setItem('ujbuda_my_bookings_v3', JSON.stringify(myBookings));
   }, [myBookings]);
 
+  // Synchronize state across tabs and windows
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'ujbuda_site_notification_v1' && e.newValue !== null) {
+        setSiteNotification(e.newValue);
+        setIsBannerDismissed(false);
+      }
+      if (e.key === 'ujbuda_my_bookings_v3' && e.newValue !== null) {
+        try {
+          setMyBookings(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -238,7 +261,15 @@ export default function App() {
   };
 
   const handleConfirmBooking = (booking: ConfirmedBooking) => {
-    setMyBookings((prev) => [booking, ...prev]);
+    setMyBookings((prev) => {
+      const updated = [booking, ...prev];
+      try {
+        localStorage.setItem('ujbuda_my_bookings_v3', JSON.stringify(updated));
+      } catch (err) {
+        console.error('Hiba a foglalás mentésekor:', err);
+      }
+      return updated;
+    });
 
     // Update location table status to reserved
     setLocations((prevLocations) =>
@@ -462,19 +493,20 @@ export default function App() {
   const handleSaveSiteNotification = (text: string) => {
     const cleanText = text.slice(0, 200).trim();
     setSiteNotification(cleanText);
+    setIsBannerDismissed(false);
     if (cleanText) {
       localStorage.setItem('ujbuda_site_notification_v1', cleanText);
-      showToast('Értesítés közzétéve a weboldal tetején!');
+      showToast('Piros hírsáv közzétéve a weboldal tetején!');
     } else {
-      localStorage.removeItem('ujbuda_site_notification_v1');
+      localStorage.setItem('ujbuda_site_notification_v1', '');
       showToast('Értesítés törölve, a sáv eltűnt a weboldalról.');
     }
   };
 
   const handleDeleteSiteNotification = () => {
     setSiteNotification('');
-    localStorage.removeItem('ujbuda_site_notification_v1');
-    showToast('Értesítés törölve, a sáv eltűnt a weboldalról.');
+    localStorage.setItem('ujbuda_site_notification_v1', '');
+    showToast('Értesítés törölve, a piros sáv eltűnt a weboldalról.');
   };
 
   return (
@@ -489,7 +521,7 @@ export default function App() {
       )}
 
       {/* 0. DEDICATED TOP SITE NOTIFICATION BOX (Max 200 chars - Red background as requested) */}
-      {siteNotification && siteNotification.trim().length > 0 && (
+      {!isBannerDismissed && siteNotification && siteNotification.trim().length > 0 && (
         <aside
           role="alert"
           aria-live="polite"
@@ -506,7 +538,7 @@ export default function App() {
             </div>
             <button
               type="button"
-              onClick={() => setSiteNotification('')}
+              onClick={() => setIsBannerDismissed(true)}
               className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/20 transition-colors shrink-0 cursor-pointer"
               title="Értesítés elrejtése"
             >
@@ -948,6 +980,10 @@ export default function App() {
         location={activeLocation}
         onClose={() => setIsBookingModalOpen(false)}
         onConfirmBooking={handleConfirmBooking}
+        onOpenMyBookings={() => {
+          setIsBookingModalOpen(false);
+          setIsMyBookingsOpen(true);
+        }}
       />
 
       {/* C. Dimension Guide Modal */}

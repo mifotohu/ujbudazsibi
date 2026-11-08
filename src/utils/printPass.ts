@@ -1,113 +1,204 @@
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+
 /**
- * Prints strictly a single-page A4 pass using an isolated hidden iframe.
- * This completely avoids browser pagination over the 5000px background website.
+ * Downloads the official Pass as a real single-page A4 PDF file.
+ * This saves an actual .pdf file into the user's Downloads folder.
  */
-export function printPassElement(elementId: string = 'printable-pass') {
+export async function downloadPassAsPdf(
+  elementId: string = 'printable-pass',
+  bookingRef: string = 'pass'
+): Promise<boolean> {
+  const element = document.getElementById(elementId);
+  if (!element) {
+    console.error(`Pass element with id #${elementId} not found`);
+    return false;
+  }
+
+  try {
+    // Render element at high scale for crisp vector-like text & QR code
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      windowWidth: element.scrollWidth,
+      windowHeight: element.scrollHeight,
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+
+    // Create A4 portrait document (210 mm x 297 mm)
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 15;
+    const maxPrintWidth = pageWidth - margin * 2; // 180 mm
+
+    const imgProps = pdf.getImageProperties(imgData);
+    const imgWidth = maxPrintWidth;
+    const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+    // Center vertically if it fits comfortably
+    const yPos = imgHeight < pageHeight - margin * 2 ? margin + 5 : margin;
+
+    // Header label
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10);
+    pdf.setTextColor(26, 54, 38); // #1A3626
+    pdf.text('ÚJBUDAZSIBI · HIVATALOS ÁRUSI BELÉPŐ ÉS ENGEDÉLY', margin, margin);
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+    pdf.setTextColor(110, 110, 110);
+    pdf.text('www.ujbudazsibi.hu · ujbudazsibi@gmail.com', margin, margin + 4);
+
+    // Draw the pass image
+    pdf.addImage(imgData, 'PNG', margin, yPos + 6, imgWidth, imgHeight);
+
+    // Footer
+    pdf.setFontSize(8);
+    pdf.setTextColor(120, 120, 120);
+    pdf.text(
+      'Kérjük, hozd magaddal ezt a jegyet kinyomtatva vagy mutasd be okostelefonodon a helyszíni bejáratnál.',
+      margin,
+      pageHeight - 12
+    );
+
+    // Trigger immediate browser download
+    const safeRef = bookingRef.replace(/[^a-zA-Z0-9_-]/g, '_');
+    pdf.save(`ujbudazsibi-stand-${safeRef}.pdf`);
+    return true;
+  } catch (error) {
+    console.error('PDF letöltési hiba:', error);
+    return false;
+  }
+}
+
+/**
+ * Robust single-page A4 printing.
+ * Uses a real-dimension offscreen frame to avoid browser blank-page optimization.
+ */
+export async function printPassElement(elementId: string = 'printable-pass'): Promise<void> {
   const element = document.getElementById(elementId);
   if (!element) {
     window.print();
     return;
   }
 
-  // Create isolated hidden iframe
-  const frame = document.createElement('iframe');
-  frame.setAttribute('style', 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;z-index:-999;');
-  document.body.appendChild(frame);
+  try {
+    // Render element with html2canvas to ensure all Tailwind styles, QR code & fonts are 100% baked
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+    });
 
-  const frameDoc = frame.contentWindow?.document;
-  if (!frameDoc) {
-    window.print();
-    return;
-  }
+    const imgUrl = canvas.toDataURL('image/png');
 
-  // Extract Tailwind or compute inline clone styles
-  const clonedPass = element.cloneNode(true) as HTMLElement;
+    // Create an offscreen iframe with REAL A4 dimensions (not 0x0, not visibility:hidden)
+    const frame = document.createElement('iframe');
+    frame.style.position = 'fixed';
+    frame.style.top = '0';
+    frame.style.left = '-10000px';
+    frame.style.width = '794px';
+    frame.style.height = '1123px';
+    frame.style.border = 'none';
+    frame.style.opacity = '0.01';
+    frame.style.pointerEvents = 'none';
 
-  frameDoc.open();
-  frameDoc.write(`
-    <!DOCTYPE html>
-    <html lang="hu">
-    <head>
-      <meta charset="utf-8">
-      <title>Újbudazsibi Hivatalos Árusi Engedély</title>
-      <link rel="preconnect" href="https://fonts.googleapis.com">
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-      <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..900&family=Plus+Jakarta+Sans:wght@400..800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-      <style>
-        @page {
-          size: A4 portrait;
-          margin: 12mm 15mm;
-        }
-        * {
-          box-sizing: border-box;
-          margin: 0;
-          padding: 0;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        html, body {
-          background: #ffffff !important;
-          color: #1A1A1A !important;
-          font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-          height: auto !important;
-          overflow: visible !important;
-        }
-        .page-container {
-          width: 100%;
-          max-width: 640px;
-          margin: 0 auto;
-          page-break-after: avoid !important;
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
-        }
-        .print-hide, .no-print, button {
-          display: none !important;
-        }
-        /* Exact pass layout styles */
-        #printable-pass {
-          background: #ffffff !important;
-          border: 2px solid #1A3626 !important;
-          border-radius: 16px !important;
-          padding: 24px 28px !important;
-          box-shadow: none !important;
-          margin: 0 auto !important;
-          width: 100% !important;
-        }
-        .font-serif {
-          font-family: 'Fraunces', Georgia, serif !important;
-        }
-        .font-mono {
-          font-family: 'JetBrains Mono', monospace !important;
-        }
-      </style>
-      <!-- Include compiled application stylesheets so Tailwind classes work inside the iframe -->
-      ${Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
-        .map((node) => node.outerHTML)
-        .join('\n')}
-    </head>
-    <body style="padding-top: 10px;">
-      <div class="page-container">
-        ${clonedPass.outerHTML}
-      </div>
-    </body>
-    </html>
-  `);
-  frameDoc.close();
+    document.body.appendChild(frame);
 
-  // Allow images and fonts to resolve, then trigger single-page print
-  setTimeout(() => {
-    try {
-      frame.contentWindow?.focus();
-      frame.contentWindow?.print();
-    } catch (err) {
-      console.warn('Iframe print fallback to window.print:', err);
+    const frameDoc = frame.contentWindow?.document;
+    if (!frameDoc) {
       window.print();
-    } finally {
-      setTimeout(() => {
-        if (document.body.contains(frame)) {
-          document.body.removeChild(frame);
-        }
-      }, 3000);
+      return;
     }
-  }, 400);
+
+    frameDoc.open();
+    frameDoc.write(`
+      <!DOCTYPE html>
+      <html lang="hu">
+      <head>
+        <meta charset="utf-8">
+        <title>Újbudazsibi Hivatalos Árusi Engedély</title>
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 10mm 15mm;
+          }
+          * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          body {
+            background: #ffffff !important;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            padding: 10px 0;
+          }
+          .header-brand {
+            font-size: 11px;
+            font-weight: bold;
+            color: #1A3626;
+            margin-bottom: 8px;
+            text-align: center;
+            letter-spacing: 0.5px;
+          }
+          .pass-image {
+            width: 100%;
+            max-width: 620px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+          }
+          .footer-note {
+            font-size: 10px;
+            color: #666;
+            margin-top: 10px;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header-brand">ÚJBUDAZSIBI · HIVATALOS ÁRUSI ENGEDÉLY (www.ujbudazsibi.hu)</div>
+        <img class="pass-image" src="${imgUrl}" alt="Újbudazsibi Standjegy" />
+        <div class="footer-note">Hozd magaddal kinyomtatva vagy mutasd be mobilon a rendezvény reggelén.</div>
+      </body>
+      </html>
+    `);
+    frameDoc.close();
+
+    // Give iframe a moment to layout the image, then trigger print
+    setTimeout(() => {
+      try {
+        frame.contentWindow?.focus();
+        frame.contentWindow?.print();
+      } catch (e) {
+        console.warn('Iframe print failed, falling back:', e);
+        window.print();
+      } finally {
+        setTimeout(() => {
+          if (document.body.contains(frame)) {
+            document.body.removeChild(frame);
+          }
+        }, 5000);
+      }
+    }, 400);
+  } catch (err) {
+    console.warn('html2canvas print fallback to window.print:', err);
+    window.print();
+  }
 }

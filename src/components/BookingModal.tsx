@@ -4,7 +4,7 @@ import { TableData, LocationData, BookingFormState, ConfirmedBooking } from '../
 import { CATEGORIES } from '../data/mockData';
 import { sendEmailNotification } from '../lib/supabase';
 import { QrCodeDisplay } from './QrCodeDisplay';
-import { printPassElement } from '../utils/printPass';
+import { printPassElement, downloadPassAsPdf } from '../utils/printPass';
 import {
   X,
   CreditCard,
@@ -15,6 +15,8 @@ import {
   AlertTriangle,
   QrCode,
   Printer,
+  FileDown,
+  Ticket,
   Sparkles,
   ShieldCheck,
   Tag,
@@ -31,6 +33,7 @@ interface BookingModalProps {
   location: LocationData;
   onClose: () => void;
   onConfirmBooking: (booking: ConfirmedBooking) => void;
+  onOpenMyBookings?: () => void;
 }
 
 const DISTRICT_XI_POSTAL_CODES = ['1111', '1112', '1113', '1114', '1115', '1116', '1117', '1118', '1119'];
@@ -41,10 +44,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   location,
   onClose,
   onConfirmBooking,
+  onOpenMyBookings,
 }) => {
   if (!isOpen || !table) return null;
 
   const [step, setStep] = useState<'details' | 'categories' | 'payment' | 'success'>('details');
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [formData, setFormData] = useState<BookingFormState>({
     fullName: '',
@@ -241,6 +246,13 @@ Hitelesítés: https://www.ujbudazsibi.hu/verify/${confirmedData.bookingId}`;
         });
     }
   }, [step, confirmedData]);
+
+  const handleDownloadPdf = async () => {
+    if (!confirmedData) return;
+    setIsDownloadingPdf(true);
+    await downloadPassAsPdf('printable-pass', confirmedData.bookingId);
+    setIsDownloadingPdf(false);
+  };
 
   const handlePrint = () => {
     printPassElement('printable-pass');
@@ -732,17 +744,46 @@ Hitelesítés: https://www.ujbudazsibi.hu/verify/${confirmedData.bookingId}`;
               </div>
             </div>
 
-            {/* Actions: Full-width stacked buttons exactly as in screenshot */}
-            <div className="space-y-2.5 pt-2 no-print">
-              <button
-                type="button"
-                onClick={handlePrint}
-                className="w-full py-3 bg-[#EFE8DA] hover:bg-[#E5DAC6] text-stone-900 font-bold rounded-2xl text-xs sm:text-sm border border-[#D5C7AF] flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-2xs font-sans"
-                title="1 oldalas PDF nyomtatás vagy letöltés"
-              >
-                <Printer className="w-4 h-4 text-stone-700" />
-                <span>Nyomtatás / PDF</span>
-              </button>
+            {/* Cache warning & print notice */}
+            <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3.5 text-xs text-amber-950 flex items-start gap-2.5 shadow-2xs no-print text-left">
+              <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div className="leading-snug space-y-1">
+                <span className="font-bold text-amber-900 block">
+                  Fontos tudnivaló a böngésző gyorsítótárról (cache):
+                </span>
+                <p className="text-[11px] sm:text-xs text-amber-900/90 font-normal">
+                  A foglalási kártyád a böngésződ helyi memóriájában tárolódik. Amennyiben törlöd a böngészési előzményeket vagy a gyorsítótárat (cache), a visszajelzés eltűnhet.
+                </p>
+                <p className="text-[11px] sm:text-xs font-semibold text-amber-950">
+                  👉 <strong>Kérjük, nyomtasd ki vagy mentsd le a PDF jegyet most</strong>, mert ezt a belépőkártyát (a rajta lévő QR kóddal) a helyszínen a stand elfoglalásakor fel kell majd mutatnod!
+                </p>
+              </div>
+            </div>
+
+            {/* Actions: Full-width stacked buttons exactly as in screenshot + dedicated PDF file save */}
+            <div className="space-y-2.5 pt-1 no-print">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={isDownloadingPdf}
+                  onClick={handleDownloadPdf}
+                  className="w-full py-3 bg-[#EFE8DA] hover:bg-[#E5DAC6] text-stone-900 font-bold rounded-2xl text-xs sm:text-sm border border-[#D5C7AF] flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs font-sans disabled:opacity-50"
+                  title="Valódi letölthető PDF jegy mentése a készülékedre"
+                >
+                  <FileDown className="w-4 h-4 text-stone-700" />
+                  <span>{isDownloadingPdf ? 'Mentés...' : 'PDF mentése'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  className="w-full py-3 bg-[#EFE8DA] hover:bg-[#E5DAC6] text-stone-900 font-bold rounded-2xl text-xs sm:text-sm border border-[#D5C7AF] flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs font-sans"
+                  title="1 oldalas szigorú A4-es nyomtatás"
+                >
+                  <Printer className="w-4 h-4 text-stone-700" />
+                  <span>Nyomtatás</span>
+                </button>
+              </div>
               
               <button
                 type="button"
@@ -751,6 +792,17 @@ Hitelesítés: https://www.ujbudazsibi.hu/verify/${confirmedData.bookingId}`;
               >
                 Vissza a vásártérképhez
               </button>
+
+              {onOpenMyBookings && (
+                <button
+                  type="button"
+                  onClick={onOpenMyBookings}
+                  className="w-full py-2 text-stone-700 hover:text-[#1A3626] font-semibold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Ticket className="w-3.5 h-3.5 text-[#C88A36]" />
+                  <span>Standjegy megtekintése a jobb felső Foglalásaim fiókban →</span>
+                </button>
+              )}
             </div>
           </div>
         )}

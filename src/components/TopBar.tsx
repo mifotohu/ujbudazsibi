@@ -115,22 +115,31 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span>Vélemény</span>
           </button>
 
-          {bookingCount > 0 ? (
-            <button
-              onClick={onOpenMyBookings}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-[#1A3626] bg-[#E2ECE4] hover:bg-[#D3E3D7] border border-[#A4C4AC] rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-2xs font-serif"
-            >
-              <Ticket className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#2E543D]" />
-              <span>Standjegyem ({bookingCount})</span>
-            </button>
-          ) : (
-            <button
-              onClick={onStartBooking}
-              className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-xs font-black text-[#14261B] bg-[#C88A36] hover:bg-[#B77726] active:scale-95 border border-[#A96E22] rounded-xl shadow-xs transition-all whitespace-nowrap shrink-0 cursor-pointer font-serif tracking-wide"
-            >
-              Asztalt foglalok
-            </button>
-          )}
+          {/* My Bookings Ticket Button - Always accessible in top right corner with badge */}
+          <button
+            onClick={onOpenMyBookings}
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer shadow-2xs font-serif ${
+              bookingCount > 0
+                ? 'bg-[#1A3626] text-[#FAF7F2] border border-[#2E543D] hover:bg-[#254834]'
+                : 'bg-[#EFE8DA] text-[#4A4036] hover:bg-[#E2D8C3] border border-[#D5C7AF]'
+            }`}
+            title="Saját lefoglalt standjegyeim és letölthető engedélykártyáim"
+          >
+            <Ticket className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${bookingCount > 0 ? 'text-[#E7C286]' : 'text-stone-500'}`} />
+            <span>Standjegyeim</span>
+            {bookingCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-[#C88A36] text-[#14261B] text-[10px] font-mono font-black tabular-nums shadow-xs">
+                {bookingCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={onStartBooking}
+            className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-xs font-black text-[#14261B] bg-[#C88A36] hover:bg-[#B77726] active:scale-95 border border-[#A96E22] rounded-xl shadow-xs transition-all whitespace-nowrap shrink-0 cursor-pointer font-serif tracking-wide"
+          >
+            Asztalt foglalok
+          </button>
         </div>
       </div>
 
